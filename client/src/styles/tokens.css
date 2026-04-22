@@ -1,0 +1,36 @@
+@import url('https://fonts.googleapis.com/css2?family=ZCOOL+XiaoWei&family=Noto+Sans+SC:wght@400;500&family=JetBrains+Mono:wght@400;500&display=swap');
+
+:root {
+  --bg-base: #16181d;
+  --bg-elevated: #1c1f26;
+  --bg-message: #1e2535;
+  --bg-input: #13151a;
+  --bg-sidebar: #141619;
+
+  --gold: #c9a84c;
+  --gold-dim: #8a6f2e;
+  --gold-glow: rgba(201, 168, 76, 0.15);
+
+  --text-primary: #e8e0cc;
+  --text-secondary: #8a8070;
+  --text-muted: #4a4540;
+
+  --border-gold: rgba(201, 168, 76, 0.3);
+  --border-subtle: rgba(255, 255, 255, 0.05);
+
+  --online-dot: #c9a84c;
+  --offline-dot: #3a3830;
+
+  --danger: #c0392b;
+  --danger-dim: rgba(192, 57, 43, 0.15);
+
+  --font-display: 'ZCOOL XiaoWei', serif;
+  --font-body: 'Noto Sans SC', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+
+  --transition: 150ms ease;
+}
