@@ -1,0 +1,129 @@
+.page {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-base);
+  position: relative;
+  overflow: hidden;
+}
+
+.page::before {
+  content: '';
+  position: absolute;
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(circle, var(--gold-glow) 0%, transparent 70%);
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.card {
+  position: relative;
+  width: 380px;
+  padding: 48px 40px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-gold);
+  border-radius: var(--radius-lg);
+  animation: fadeSlideUp 400ms ease forwards;
+}
+
+.logo {
+  font-family: var(--font-display);
+  font-size: 28px;
+  color: var(--gold);
+  text-align: center;
+  margin-bottom: 8px;
+  letter-spacing: 0.05em;
+}
+
+.subtitle {
+  font-size: 12px;
+  color: var(--text-secondary);
+  text-align: center;
+  margin-bottom: 36px;
+  font-family: var(--font-mono);
+}
+
+.divider {
+  height: 1px;
+  background: var(--border-subtle);
+  margin: 28px 0;
+}
+
+.field {
+  margin-bottom: 20px;
+}
+
+.label {
+  display: block;
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.input {
+  width: 100%;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border-gold);
+  transition: border-color var(--transition);
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.input:focus {
+  border-color: var(--gold);
+}
+
+.input::placeholder {
+  color: var(--text-muted);
+}
+
+.btn {
+  width: 100%;
+  padding: 12px;
+  background: var(--gold);
+  color: #0f1014;
+  font-family: var(--font-display);
+  font-size: 16px;
+  border-radius: var(--radius-sm);
+  transition: opacity var(--transition), transform var(--transition);
+  margin-top: 8px;
+  letter-spacing: 0.05em;
+}
+
+.btn:hover:not(:disabled) {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.error {
+  font-size: 12px;
+  color: var(--danger);
+  margin-top: 12px;
+  text-align: center;
+  font-family: var(--font-mono);
+}
+
+.link {
+  display: block;
+  text-align: center;
+  margin-top: 24px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.link a {
+  color: var(--gold);
+  margin-left: 4px;
+}
