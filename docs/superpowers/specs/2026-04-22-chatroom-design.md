@@ -277,7 +277,7 @@ GET  /api/invite/mine          查看自己生成的邀请码列表
 
 - 服务端绝不存储消息明文，也无法解密（无私钥）
 - 私钥设置 `extractable: false`，JS 层无法导出
-- 所有 API 需鉴权（JWT / session cookie，HttpOnly）
+- 所有 API 需鉴权（JWT，存于 HttpOnly Cookie；WebSocket 连接时附带 token 参数）
 - 邀请码单次有效，使用后立即标记
 - WebSocket 连接需携带有效 session token
 - 密码存储用 bcrypt（cost factor ≥ 12）
