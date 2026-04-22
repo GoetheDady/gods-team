@@ -5,6 +5,7 @@ import cookieParser from 'cookie-parser';
 import authRouter from './auth';
 import inviteRouter from './invite';
 import pubkeyRouter from './pubkey';
+import { setupWebSocket } from './ws';
 
 const app = express();
 app.use(cors({ origin: 'http://localhost:5173', credentials: true }));
@@ -17,6 +18,7 @@ app.use('/api/users', pubkeyRouter);
 app.get('/api/health', (_req, res) => res.json({ ok: true }));
 
 const server = http.createServer(app);
+setupWebSocket(server);
 
 server.listen(3000, () => {
   console.log('Server running on http://localhost:3000');
