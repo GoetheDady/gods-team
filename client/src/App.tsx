@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import Chat from './pages/Chat';
 import { api } from './services/api';
 
 export default function App() {
@@ -26,7 +27,7 @@ export default function App() {
       <Routes>
         <Route path="/login" element={auth ? <Navigate to="/chat" /> : <Login onLogin={handleLogin} />} />
         <Route path="/register" element={auth ? <Navigate to="/chat" /> : <Register onLogin={handleLogin} />} />
-        <Route path="/chat" element={auth ? <div>聊天室（待实现）</div> : <Navigate to="/login" />} />
+        <Route path="/chat" element={auth ? <Chat userId={auth.userId} username={auth.username} onLogout={() => setAuth(null)} /> : <Navigate to="/login" />} />
         <Route path="*" element={<Navigate to={auth ? '/chat' : '/login'} />} />
       </Routes>
     </BrowserRouter>
