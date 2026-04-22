@@ -1,7 +1,11 @@
 import Database from 'better-sqlite3';
 import path from 'path';
 
-const db = new Database(path.join(__dirname, '../../data/chatroom.db'));
+const dbPath = process.env.NODE_ENV === 'test'
+  ? ':memory:'
+  : path.join(__dirname, '../../data/chatroom.db');
+
+const db = new Database(dbPath);
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS users (
