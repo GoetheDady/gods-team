@@ -1,5 +1,6 @@
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
+import { playwright } from '@vitest/browser-playwright';
 
 export default defineConfig({
   plugins: [react()],
@@ -10,14 +11,13 @@ export default defineConfig({
     globals: true,
     browser: {
       enabled: true,
-      name: 'chromium',
-      provider: 'playwright',
-      headless: true,
-      providerOptions: {
+      provider: playwright({
         launch: {
           args: ['--enable-features=SharedArrayBuffer'],
         },
-      },
+      }),
+      headless: true,
+      instances: [{ browser: 'chromium' }],
     },
     setupFiles: ['./tests/setup.browser.ts'],
     server: {
