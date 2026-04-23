@@ -13,10 +13,14 @@ import {
   generateAesKey,
   encrypt,
   decrypt,
+  encryptBinary,
+  decryptBinary,
   wrapAesKey,
   unwrapAesKey,
 } from '../services/crypto';
 import type { EncryptedPayload } from '../services/crypto';
+import { compressImage } from '../services/imageUtils';
+import type { ImageMeta } from '../components/MessageList';
 import UserList from '../components/UserList';
 import MessageList from '../components/MessageList';
 import type { Message } from '../components/MessageList';
@@ -51,6 +55,8 @@ export default function Chat({ userId, username, onLogout }: Props) {
   const sessionKeys = useRef<Map<string, CryptoKey>>(new Map());
   const usernameMap = useRef<Map<string, string>>(new Map([[userId, username]]));
   const activePeerIdRef = useRef<string | null>(null);
+  const [hallImageUrls, setHallImageUrls] = useState<Map<string, string[]>>(new Map());
+  const [privateImageUrls, setPrivateImageUrls] = useState<Map<string, string[]>>(new Map());
 
   const getSessionKey = useCallback(async (peerId: string): Promise<CryptoKey | null> => {
     if (sessionKeys.current.has(peerId)) return sessionKeys.current.get(peerId)!;
@@ -131,19 +137,26 @@ export default function Chat({ userId, username, onLogout }: Props) {
       } else if (msg.type === 'hall_message') {
         if (!hallKey.current || !msg.from || !msg.payload) return;
         const payload = msg.payload as unknown as EncryptedPayload;
-        let content: string;
+        let decrypted: string;
         try {
-          content = await decrypt(payload, hallKey.current);
+          decrypted = await decrypt(payload, hallKey.current);
         } catch (e) {
           console.error('[hall] decrypt failed:', String(e));
           return;
+        }
+        let parsed: { content: string; images?: ImageMeta[] };
+        try {
+          parsed = JSON.parse(decrypted);
+        } catch {
+          parsed = { content: decrypted };
         }
         const fromUsername = usernameMap.current.get(msg.from) || msg.from;
         const newMsg: Message = {
           id: `${msg.from}-${msg.timestamp}`,
           from_id: msg.from,
           from_username: fromUsername,
-          content,
+          content: parsed.content || '',
+          images: parsed.images,
           timestamp: msg.timestamp!,
         };
         setHallMessages(prev => [...prev, newMsg]);
@@ -154,13 +167,20 @@ export default function Chat({ userId, username, onLogout }: Props) {
         const sessionKey = await getSessionKey(peerId);
         if (!sessionKey) return;
         const payload = msg.payload as unknown as EncryptedPayload;
-        const content = await decrypt(payload, sessionKey);
+        const decrypted = await decrypt(payload, sessionKey);
+        let parsed: { content: string; images?: ImageMeta[] };
+        try {
+          parsed = JSON.parse(decrypted);
+        } catch {
+          parsed = { content: decrypted };
+        }
         const fromUsername = usernameMap.current.get(msg.from) || msg.from;
         const newMsg: Message = {
           id: `${msg.from}-${msg.timestamp}`,
           from_id: msg.from,
           from_username: fromUsername,
-          content,
+          content: parsed.content || '',
+          images: parsed.images,
           timestamp: msg.timestamp!,
         };
         const chatId = [userId, peerId].sort().join('-');
@@ -188,6 +208,7 @@ export default function Chat({ userId, username, onLogout }: Props) {
         from_id: m.from_id,
         from_username: m.from_username || usernameMap.current.get(m.from_id) || m.from_id,
         content: m.content,
+        images: m.images,
         timestamp: m.timestamp,
       })));
     }
@@ -204,18 +225,76 @@ export default function Chat({ userId, username, onLogout }: Props) {
     };
   }, [userId, getSessionKey]);
 
-  async function sendHallMessage(text: string) {
+  async function sendHallMessage(text: string, file?: File) {
     if (!hallKey.current) return;
-    const payload = await encrypt(text, hallKey.current);
+    let images: ImageMeta[] | undefined;
+    if (file) {
+      try {
+        const { blob, width, height } = await compressImage(file);
+        const encrypted = await encryptBinary(await blob.arrayBuffer(), hallKey.current);
+        const { url } = await api.uploadFile(JSON.stringify(encrypted));
+        images = [{ url, width, height }];
+      } catch (err) {
+        alert(err instanceof Error ? err.message : '上传失败');
+        return;
+      }
+    }
+    const payload = await encrypt(JSON.stringify({ content: text, images }), hallKey.current);
     wsClient.send({ type: 'hall_message', payload });
   }
 
-  async function sendPrivateMessage(text: string) {
+  async function sendPrivateMessage(text: string, file?: File) {
     if (!activePeerId) return;
     const sessionKey = await getSessionKey(activePeerId);
     if (!sessionKey) return;
-    const payload = await encrypt(text, sessionKey);
+    let images: ImageMeta[] | undefined;
+    if (file) {
+      try {
+        const { blob, width, height } = await compressImage(file);
+        const encrypted = await encryptBinary(await blob.arrayBuffer(), sessionKey);
+        const { url } = await api.uploadFile(JSON.stringify(encrypted));
+        images = [{ url, width, height }];
+      } catch (err) {
+        alert(err instanceof Error ? err.message : '上传失败');
+        return;
+      }
+    }
+    const payload = await encrypt(JSON.stringify({ content: text, images }), sessionKey);
     wsClient.send({ type: 'private_message', payload: { to: activePeerId, ...payload } });
+  }
+
+  async function loadHallImage(msgId: string, meta: ImageMeta) {
+    if (!hallKey.current) return;
+    try {
+      const res = await fetch(meta.url);
+      if (!res.ok) throw new Error();
+      const encrypted = JSON.parse(await res.text());
+      const decrypted = await decryptBinary(encrypted, hallKey.current);
+      const blobUrl = URL.createObjectURL(new Blob([decrypted], { type: 'image/jpeg' }));
+      setHallImageUrls(prev => {
+        const next = new Map(prev);
+        next.set(msgId, [...(next.get(msgId) || []), blobUrl]);
+        return next;
+      });
+    } catch {}
+  }
+
+  async function loadPrivateImage(msgId: string, meta: ImageMeta) {
+    if (!activePeerId) return;
+    const sessionKey = await getSessionKey(activePeerId);
+    if (!sessionKey) return;
+    try {
+      const res = await fetch(meta.url);
+      if (!res.ok) throw new Error();
+      const encrypted = JSON.parse(await res.text());
+      const decrypted = await decryptBinary(encrypted, sessionKey);
+      const blobUrl = URL.createObjectURL(new Blob([decrypted], { type: 'image/jpeg' }));
+      setPrivateImageUrls(prev => {
+        const next = new Map(prev);
+        next.set(msgId, [...(next.get(msgId) || []), blobUrl]);
+        return next;
+      });
+    } catch {}
   }
 
   function sendTyping() {
@@ -239,6 +318,7 @@ export default function Chat({ userId, username, onLogout }: Props) {
       from_id: m.from_id,
       from_username: m.from_username || usernameMap.current.get(m.from_id) || m.from_id,
       content: m.content,
+      images: m.images,
       timestamp: m.timestamp,
     })));
   }
@@ -285,6 +365,8 @@ export default function Chat({ userId, username, onLogout }: Props) {
           messages={hallMessages}
           currentUserId={userId}
           typingUsernames={hallTyping}
+          imageUrls={hallImageUrls}
+          onLoadImage={loadHallImage}
         />
         <MessageInput
           onSend={sendHallMessage}
@@ -304,6 +386,8 @@ export default function Chat({ userId, username, onLogout }: Props) {
           onSend={sendPrivateMessage}
           onTyping={sendPrivateTyping}
           onClose={() => { activePeerIdRef.current = null; setActivePeerId(null); }}
+          imageUrls={privateImageUrls}
+          onLoadImage={loadPrivateImage}
         />
       </aside>
     </div>

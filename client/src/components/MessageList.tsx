@@ -59,7 +59,7 @@ export default function MessageList({ messages, currentUserId, typingUsernames, 
           </div>
           <div className={styles.bubble}>
             {msg.content && <p className={styles.text}>{msg.content}</p>}
-            {msg.images?.map((img, i) => {
+            {msg.images?.map((_img, i) => {
               const urls = imageUrls.get(msg.id);
               if (urls?.[i]) {
                 return (

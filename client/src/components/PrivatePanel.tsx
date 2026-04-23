@@ -1,5 +1,5 @@
 import MessageList from './MessageList';
-import type { Message } from './MessageList';
+import type { Message, ImageMeta } from './MessageList';
 import MessageInput from './MessageInput';
 import styles from './PrivatePanel.module.css';
 
@@ -9,9 +9,11 @@ interface Props {
   messages: Message[];
   currentUserId: string;
   typingUsernames: string[];
-  onSend: (text: string) => void;
+  onSend: (text: string, file?: File) => void;
   onTyping: () => void;
   onClose: () => void;
+  imageUrls: Map<string, string[]>;
+  onLoadImage: (msgId: string, meta: ImageMeta) => void;
 }
 
 export default function PrivatePanel({
@@ -23,6 +25,8 @@ export default function PrivatePanel({
   onSend,
   onTyping,
   onClose,
+  imageUrls,
+  onLoadImage,
 }: Props) {
   if (!peerId) {
     return (
@@ -44,6 +48,8 @@ export default function PrivatePanel({
           messages={messages}
           currentUserId={currentUserId}
           typingUsernames={typingUsernames}
+          imageUrls={imageUrls}
+          onLoadImage={onLoadImage}
         />
       </div>
       <MessageInput onSend={onSend} onTyping={onTyping} placeholder={`私聊 ${peerUsername}...`} />
