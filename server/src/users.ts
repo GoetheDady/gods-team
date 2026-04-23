@@ -33,24 +33,27 @@ router.patch('/me', requireAuth, async (req: AuthRequest, res) => {
   }
 
   // 动态构建只更新传入字段的 SQL
-  if (nickname !== undefined && avatar_url !== undefined) {
-    await sql`
-      UPDATE users SET nickname = ${nickname.trim()}, avatar_url = ${avatar_url}
-      WHERE id = ${req.userId!}
-    `;
-  } else if (nickname !== undefined) {
-    await sql`
-      UPDATE users SET nickname = ${nickname.trim()}
-      WHERE id = ${req.userId!}
-    `;
-  } else {
-    await sql`
-      UPDATE users SET avatar_url = ${avatar_url!}
-      WHERE id = ${req.userId!}
-    `;
+  try {
+    if (nickname !== undefined && avatar_url !== undefined) {
+      await sql`
+        UPDATE users SET nickname = ${nickname.trim()}, avatar_url = ${avatar_url}
+        WHERE id = ${req.userId!}
+      `;
+    } else if (nickname !== undefined) {
+      await sql`
+        UPDATE users SET nickname = ${nickname.trim()}
+        WHERE id = ${req.userId!}
+      `;
+    } else {
+      await sql`
+        UPDATE users SET avatar_url = ${avatar_url!}
+        WHERE id = ${req.userId!}
+      `;
+    }
+    res.json({ ok: true });
+  } catch {
+    res.status(500).json({ error: 'Internal server error' });
   }
-
-  res.json({ ok: true });
 });
 
 export default router;
