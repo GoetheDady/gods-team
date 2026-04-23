@@ -9,6 +9,7 @@ import pubkeyRouter from './pubkey';
 import uploadRouter from './upload';
 import { FILES_DIR } from './upload';
 import { setupWebSocket } from './ws';
+import { startCleanup } from './cleanup';
 
 const app = express();
 app.use(cors({
@@ -39,6 +40,7 @@ const server = http.createServer(app);
 setupWebSocket(server);
 
 if (process.env.NODE_ENV !== 'test') {
+  startCleanup(FILES_DIR);
   const port = Number(process.env.PORT) || 3000;
   server.listen(port, () => {
     console.log(`Server running on http://localhost:${port}`);
