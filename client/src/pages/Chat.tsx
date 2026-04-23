@@ -11,11 +11,18 @@ import MessageInput from '../components/MessageInput';
 import PrivatePanel from '../components/PrivatePanel';
 import styles from './Chat.module.css';
 
-interface OnlineUser { id: string; username: string; }
+interface OnlineUser {
+  id: string;
+  username: string;
+  nickname: string | null;
+  avatar_url: string | null;
+}
 
 interface Props {
   userId: string;
   username: string;
+  nickname: string | null;
+  avatarUrl: string | null;
   onLogout: () => void;
 }
 
@@ -32,7 +39,7 @@ function toMessage(m: ServerMessage): Message {
   };
 }
 
-export default function Chat({ userId, username, onLogout }: Props) {
+export default function Chat({ userId, username, nickname, avatarUrl, onLogout }: Props) {
   const navigate = useNavigate();
   const [onlineUsers, setOnlineUsers] = useState<OnlineUser[]>([]);
   const [hallMessages, setHallMessages] = useState<Message[]>([]);
@@ -60,13 +67,14 @@ export default function Chat({ userId, username, onLogout }: Props) {
     const unsub = wsClient.on((msg: WsMessage) => {
       if (msg.type === 'online_users' && msg.users) {
         const users = msg.users as OnlineUser[];
-        users.forEach(u => usernameMap.current.set(u.id, u.username));
+        users.forEach(u => usernameMap.current.set(u.id, u.nickname ?? u.username));
         setOnlineUsers(users);
       } else if (msg.type === 'user_joined') {
-        usernameMap.current.set(msg.userId!, msg.username!);
+        const m = msg as any;
+        usernameMap.current.set(m.userId, m.nickname ?? m.username);
         setOnlineUsers(prev => {
-          if (prev.some(u => u.id === msg.userId)) return prev;
-          return [...prev, { id: msg.userId!, username: msg.username! }];
+          if (prev.some(u => u.id === m.userId)) return prev;
+          return [...prev, { id: m.userId, username: m.username, nickname: m.nickname ?? null, avatar_url: m.avatar_url ?? null }];
         });
       } else if (msg.type === 'user_left') {
         setOnlineUsers(prev => prev.filter(u => u.id !== msg.userId));
@@ -202,6 +210,8 @@ export default function Chat({ userId, username, onLogout }: Props) {
         <UserList
           users={onlineUsers}
           currentUserId={userId}
+          currentUserNickname={nickname}
+          currentUserAvatarUrl={avatarUrl}
           activePrivateId={activePeerId}
           onSelectUser={selectUser}
         />
