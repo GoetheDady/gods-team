@@ -1,3 +1,5 @@
+import { getAccessToken } from './api';
+
 export interface WsMessage {
   type: string;
   from?: string;
@@ -15,11 +17,20 @@ class WsClient {
   private handlers = new Set<MessageHandler>();
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
-  connect(token: string) {
+  // 连接后立即发送 auth 消息，不再通过 URL 参数传 token
+  connect() {
     if (this.socket?.readyState === WebSocket.OPEN) return;
 
-    const wsUrl = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws?token=${encodeURIComponent(token)}`;
+    const wsUrl = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws`;
     this.socket = new WebSocket(wsUrl);
+
+    this.socket.onopen = () => {
+      // 连接建立后发送 auth 消息，携带 access token
+      const token = getAccessToken();
+      if (token) {
+        this.socket?.send(JSON.stringify({ type: 'auth', token }));
+      }
+    };
 
     this.socket.onmessage = (e) => {
       try {
@@ -31,7 +42,7 @@ class WsClient {
     };
 
     this.socket.onclose = () => {
-      this.reconnectTimer = setTimeout(() => this.connect(token), 3000);
+      this.reconnectTimer = setTimeout(() => this.connect(), 3000);
     };
   }
 
