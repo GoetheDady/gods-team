@@ -30,4 +30,7 @@ db.exec(`
   );
 `);
 
+// Seed the bootstrap invite code if it doesn't exist yet
+db.prepare('INSERT OR IGNORE INTO invite_codes (code, created_by, created_at) VALUES (?, ?, ?)').run('ADMIN0001', null, Date.now());
+
 export default db;
