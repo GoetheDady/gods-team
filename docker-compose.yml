@@ -22,6 +22,7 @@ services:
 networks:
   gods-net:
     name: gods-net
+    external: true
 
 volumes:
   gods-team-data:
