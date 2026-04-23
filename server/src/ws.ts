@@ -38,45 +38,48 @@ export function wsSend(userId: string, data: object) {
 export function setupWebSocket(server: Server) {
   const wss = new WebSocketServer({ server, path: '/ws' });
 
-  wss.on('connection', (ws: WebSocket, req: IncomingMessage) => {
-    // WebSocket 通过 URL query 参数传递 JWT token
-    // 因为 WebSocket 不支持自定义 header，所以用 ?token=xxx 的方式鉴权
-    const url = new URL(req.url || '', 'http://localhost');
-    const token = url.searchParams.get('token');
+  wss.on('connection', (ws: WebSocket, _req: IncomingMessage) => {
+    // WS 不支持自定义 header，所以改为连接后通过消息发送 token
+    // 未认证状态下只处理 'auth' 类型消息，其他消息一律忽略
+    let authenticated = false;
 
-    if (!token) { ws.close(4001, 'Token required'); return; }
-
-    let userId: string, username: string;
-    try {
-      const payload = jwt.verify(token, JWT_SECRET) as { userId: string; username: string };
-      userId = payload.userId;
-      username = payload.username;
-    } catch {
-      ws.close(4001, 'Invalid token');
-      return;
-    }
-
-    clients.set(userId, { ws, userId, username });
-
-    // 新连接建立后：向该用户发送完整在线列表，向其他人广播 user_joined
-    const onlineUsers = Array.from(clients.values()).map(c => ({ id: c.userId, username: c.username }));
-    ws.send(JSON.stringify({ type: 'online_users', users: onlineUsers }));
-    wsBroadcast({ type: 'user_joined', userId, username }, userId);
-
-    // WS 只处理 typing 状态，消息发送已改为 HTTP POST /api/messages
     ws.on('message', async (raw) => {
       try {
-        let msg: { type: string; to?: string };
+        let msg: { type: string; token?: string; to?: string };
         try { msg = JSON.parse(raw.toString()); } catch { return; }
 
+        // 未认证时只接受 auth 消息
+        if (!authenticated) {
+          if (msg.type !== 'auth' || !msg.token) return;
+
+          try {
+            const payload = jwt.verify(msg.token, JWT_SECRET) as { userId: string; username: string };
+            const userId = payload.userId;
+            const username = payload.username;
+
+            authenticated = true;
+            clients.set(userId, { ws, userId, username });
+
+            // 验证通过：发送在线列表 + 广播上线
+            const onlineUsers = Array.from(clients.values()).map(c => ({ id: c.userId, username: c.username }));
+            ws.send(JSON.stringify({ type: 'online_users', users: onlineUsers }));
+            wsBroadcast({ type: 'user_joined', userId, username }, userId);
+          } catch {
+            ws.close(4001, 'Invalid token');
+          }
+          return;
+        }
+
+        // 已认证：处理 typing 消息（消息发送已改为 HTTP POST /api/messages）
         if (msg.type === 'typing') {
+          // 需要从 clients 中找到当前连接的 userId
+          const client = Array.from(clients.values()).find(c => c.ws === ws);
+          if (!client) return;
           const to = msg.to;
           if (to) {
-            // 私聊 typing：只发给对方
-            wsSend(to, { type: 'typing', from: userId });
+            wsSend(to, { type: 'typing', from: client.userId });
           } else {
-            // 大厅 typing：广播给所有人（除自己）
-            wsBroadcast({ type: 'typing', from: userId }, userId);
+            wsBroadcast({ type: 'typing', from: client.userId }, client.userId);
           }
         }
       } catch (err) {
@@ -85,8 +88,11 @@ export function setupWebSocket(server: Server) {
     });
 
     ws.on('close', () => {
-      clients.delete(userId);
-      wsBroadcast({ type: 'user_left', userId, username });
+      const client = Array.from(clients.values()).find(c => c.ws === ws);
+      if (client) {
+        clients.delete(client.userId);
+        wsBroadcast({ type: 'user_left', userId: client.userId, username: client.username });
+      }
     });
   });
 }
