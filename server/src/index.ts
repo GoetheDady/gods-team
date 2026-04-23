@@ -6,6 +6,8 @@ import cookieParser from 'cookie-parser';
 import authRouter from './auth';
 import inviteRouter from './invite';
 import pubkeyRouter from './pubkey';
+import uploadRouter from './upload';
+import { FILES_DIR } from './upload';
 import { setupWebSocket } from './ws';
 
 const app = express();
@@ -21,6 +23,8 @@ app.use('/api/auth', authRouter);
 app.use('/api/invite', inviteRouter);
 app.use('/api/users', pubkeyRouter);
 app.get('/api/health', (_req, res) => res.json({ ok: true }));
+app.use('/api', uploadRouter);
+app.use('/files', express.static(FILES_DIR));
 
 // Production: serve client static files + SPA fallback
 if (process.env.NODE_ENV === 'production') {
