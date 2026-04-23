@@ -6,6 +6,7 @@ import cookieParser from 'cookie-parser';
 import { initDb } from './pg';
 import authRouter from './auth';
 import inviteRouter from './invite';
+import messagesRouter from './messages';
 import { setupWebSocket } from './ws';
 
 const app = express();
@@ -20,6 +21,7 @@ app.use(cookieParser());
 
 app.use('/api/auth', authRouter);
 app.use('/api/invite', inviteRouter);
+app.use('/api/messages', messagesRouter);
 app.get('/api/health', (_req, res) => res.json({ ok: true }));
 
 if (process.env.NODE_ENV === 'production') {
