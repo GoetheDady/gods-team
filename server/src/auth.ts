@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { randomUUID } from 'crypto';
 import bcrypt from 'bcrypt';
-import db from './db';
+import sql from './pg';
 import { signToken, requireAuth, AuthRequest } from './middleware/auth';
 
 const router = Router();
@@ -18,16 +18,15 @@ router.post('/register', async (req: Request, res: Response) => {
     return;
   }
 
-  const code = db.prepare('SELECT * FROM invite_codes WHERE code = ?').get(invite_code) as
-    | { code: string; used_by: string | null }
-    | undefined;
-
+  const [code] = await sql<{ code: string; used_by: string | null }[]>`
+    SELECT code, used_by FROM invite_codes WHERE code = ${invite_code}
+  `;
   if (!code || code.used_by !== null) {
     res.status(400).json({ error: 'Invalid or already used invite code' });
     return;
   }
 
-  const existing = db.prepare('SELECT id FROM users WHERE username = ?').get(username);
+  const [existing] = await sql`SELECT id FROM users WHERE username = ${username}`;
   if (existing) {
     res.status(400).json({ error: 'Username already taken' });
     return;
@@ -37,14 +36,16 @@ router.post('/register', async (req: Request, res: Response) => {
   const userId = randomUUID();
   const now = Date.now();
 
-  db.transaction(() => {
-    db.prepare('INSERT INTO users (id, username, password, created_at) VALUES (?, ?, ?, ?)').run(
-      userId, username, hash, now
-    );
-    db.prepare('UPDATE invite_codes SET used_by = ?, used_at = ? WHERE code = ?').run(
-      userId, now, invite_code
-    );
-  })();
+  await sql.begin(async (tx) => {
+    await tx`
+      INSERT INTO users (id, username, password, is_admin, created_at)
+      VALUES (${userId}, ${username}, ${hash}, FALSE, ${now})
+    `;
+    await tx`
+      UPDATE invite_codes SET used_by = ${userId}, used_at = ${now}
+      WHERE code = ${invite_code}
+    `;
+  });
 
   const token = signToken(userId, username);
   res.cookie('token', token, { httpOnly: true, sameSite: 'strict', maxAge: 7 * 24 * 3600 * 1000 });
@@ -59,10 +60,9 @@ router.post('/login', async (req: Request, res: Response) => {
     return;
   }
 
-  const user = db.prepare('SELECT * FROM users WHERE username = ?').get(username) as
-    | { id: string; username: string; password: string }
-    | undefined;
-
+  const [user] = await sql<{ id: string; username: string; password: string }[]>`
+    SELECT id, username, password FROM users WHERE username = ${username}
+  `;
   if (!user || !(await bcrypt.compare(password, user.password))) {
     res.status(401).json({ error: 'Invalid credentials' });
     return;
