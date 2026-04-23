@@ -1,10 +1,48 @@
 .container {
   display: flex;
+  flex-direction: column;
+}
+
+.preview {
+  padding: 8px 16px 0;
+  position: relative;
+  display: inline-block;
+}
+
+.previewImg {
+  max-height: 120px;
+  max-width: 200px;
+  border-radius: var(--radius-sm);
+  object-fit: contain;
+}
+
+.removeBtn {
+  position: absolute;
+  top: 4px;
+  right: -4px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--danger);
+  color: white;
+  font-size: 12px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.row {
+  display: flex;
   align-items: flex-end;
   gap: 12px;
   padding: 12px 16px;
   border-top: 1px solid var(--border-subtle);
   background: var(--bg-input);
+}
+
+.fileInput {
+  display: none;
 }
 
 .input {
@@ -26,6 +64,29 @@
   color: var(--text-muted);
 }
 
+.attachBtn {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-gold);
+  color: var(--gold);
+  font-size: 18px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background var(--transition);
+}
+
+.attachBtn:hover:not(:disabled) {
+  background: var(--gold-glow);
+}
+
+.attachBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 .send {
   padding: 8px 18px;
   background: var(--gold);
@@ -35,8 +96,6 @@
   border-radius: var(--radius-sm);
   transition: opacity var(--transition), transform var(--transition);
   flex-shrink: 0;
-  position: relative;
-  overflow: hidden;
 }
 
 .send:hover:not(:disabled) {
