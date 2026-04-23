@@ -251,6 +251,14 @@ export default function Chat({ userId, username, onLogout }: Props) {
 
   return (
     <div className={styles.layout}>
+      {!hallKeyReady && (
+        <div className={styles.loading}>
+          <div className={styles.loadingInner}>
+            <div className={styles.spinner} />
+            <span>正在建立加密连接…</span>
+          </div>
+        </div>
+      )}
       <header className={styles.header}>
         <div className={styles.headerLeft}>
           <span className={styles.logo}>江湖</span>
