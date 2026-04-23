@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import type { KeyboardEvent, ChangeEvent, ClipboardEvent } from 'react';
 import { Paperclip, X } from 'lucide-react';
+import { api } from '../services/api';
 import styles from './MessageInput.module.css';
 
 interface Props {
@@ -14,7 +15,7 @@ export default function MessageInput({ onSend, onTyping, disabled, placeholder }
   const [text, setText] = useState('');
   const [pendingImageUrl, setPendingImageUrl] = useState<string | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
-  const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [uploading, setUploading] = useState(false);
   const composing = useRef(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -30,7 +31,6 @@ export default function MessageInput({ onSend, onTyping, disabled, placeholder }
     setText(e.target.value);
     autoResize();
     onTyping();
-    if (typingTimer.current) clearTimeout(typingTimer.current);
   }
 
   function handleKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
@@ -45,7 +45,7 @@ export default function MessageInput({ onSend, onTyping, disabled, placeholder }
       if (item.type.startsWith('image/')) {
         e.preventDefault();
         const file = item.getAsFile();
-        if (file) addImage(file);
+        if (file) uploadImage(file);
         break;
       }
     }
@@ -53,14 +53,29 @@ export default function MessageInput({ onSend, onTyping, disabled, placeholder }
 
   function handleFileSelect(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
-    if (file) addImage(file);
+    if (file) uploadImage(file);
     if (fileInputRef.current) fileInputRef.current.value = '';
   }
 
-  function addImage(file: File) {
+  async function uploadImage(file: File) {
     if (preview) URL.revokeObjectURL(preview);
-    setPendingImageUrl(null);
     setPreview(URL.createObjectURL(file));
+    setPendingImageUrl(null);
+    setUploading(true);
+    try {
+      const { url, fields } = await api.getOssSign();
+      const form = new FormData();
+      Object.entries(fields).forEach(([k, v]) => form.append(k, v));
+      form.append('file', file);
+      const ossRes = await fetch(url, { method: 'POST', body: form });
+      if (!ossRes.ok) throw new Error('OSS 上传失败');
+      setPendingImageUrl(`${url}/${fields.key}`);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : '上传失败');
+      removeImage();
+    } finally {
+      setUploading(false);
+    }
   }
 
   function removeImage() {
@@ -71,7 +86,7 @@ export default function MessageInput({ onSend, onTyping, disabled, placeholder }
 
   function submit() {
     const trimmed = text.trim();
-    if ((!trimmed && !pendingImageUrl) || disabled) return;
+    if ((!trimmed && !pendingImageUrl) || disabled || uploading) return;
     onSend(trimmed, pendingImageUrl || undefined);
     setText('');
     removeImage();
@@ -83,6 +98,7 @@ export default function MessageInput({ onSend, onTyping, disabled, placeholder }
       {preview && (
         <div className={styles.preview}>
           <img src={preview} alt="preview" className={styles.previewImg} />
+          {uploading && <div className={styles.uploadingOverlay}>上传中...</div>}
           <button className={styles.removeBtn} onClick={removeImage}><X size={10} strokeWidth={3} /></button>
         </div>
       )}
@@ -97,7 +113,7 @@ export default function MessageInput({ onSend, onTyping, disabled, placeholder }
         <button
           className={styles.attachBtn}
           onClick={() => fileInputRef.current?.click()}
-          disabled={disabled}
+          disabled={disabled || uploading}
           title="发送图片"
         >
           <Paperclip size={16} />
@@ -115,7 +131,11 @@ export default function MessageInput({ onSend, onTyping, disabled, placeholder }
           disabled={disabled}
           rows={1}
         />
-        <button className={styles.send} onClick={submit} disabled={disabled || (!text.trim() && !pendingImageUrl)}>
+        <button
+          className={styles.send}
+          onClick={submit}
+          disabled={disabled || uploading || (!text.trim() && !pendingImageUrl)}
+        >
           发送
         </button>
       </div>
