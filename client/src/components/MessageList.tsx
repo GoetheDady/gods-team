@@ -3,8 +3,6 @@ import styles from './MessageList.module.css';
 
 export interface ImageMeta {
   url: string;
-  width: number;
-  height: number;
 }
 
 export interface Message {
@@ -20,34 +18,34 @@ interface Props {
   messages: Message[];
   currentUserId: string;
   typingUsernames: string[];
-  imageUrls: Map<string, string[]>;
-  onLoadImage: (msgId: string, meta: ImageMeta) => void;
+  hasMore: boolean;
+  onLoadMore: () => void;
 }
 
 function formatTime(ts: number) {
   return new Date(ts).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
 }
 
-export default function MessageList({ messages, currentUserId, typingUsernames, imageUrls, onLoadImage }: Props) {
+export default function MessageList({ messages, currentUserId, typingUsernames, hasMore, onLoadMore }: Props) {
   const bottomRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const [lightbox, setLightbox] = useState<string | null>(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, typingUsernames]);
+  }, [messages.length, typingUsernames.length]);
 
-  useEffect(() => {
-    for (const msg of messages) {
-      if (msg.images?.length && !imageUrls.has(msg.id)) {
-        for (const img of msg.images) {
-          onLoadImage(msg.id, img);
-        }
-      }
+  function handleScroll() {
+    if (containerRef.current && containerRef.current.scrollTop === 0 && hasMore) {
+      onLoadMore();
     }
-  }, [messages]);
+  }
 
   return (
-    <div className={styles.container}>
+    <div className={styles.container} ref={containerRef} onScroll={handleScroll}>
+      {hasMore && (
+        <div className={styles.loadMore} onClick={onLoadMore}>加载更多</div>
+      )}
       {messages.map(msg => (
         <div
           key={msg.id}
@@ -59,21 +57,15 @@ export default function MessageList({ messages, currentUserId, typingUsernames, 
           </div>
           <div className={styles.bubble}>
             {msg.content && <p className={styles.text}>{msg.content}</p>}
-            {msg.images?.map((_img, i) => {
-              const urls = imageUrls.get(msg.id);
-              if (urls?.[i]) {
-                return (
-                  <img
-                    key={i}
-                    src={urls[i]}
-                    alt=""
-                    className={styles.image}
-                    onClick={() => setLightbox(urls[i])}
-                  />
-                );
-              }
-              return <div key={i} className={styles.imageExpired}>图片加载中…</div>;
-            })}
+            {msg.images?.map((img, i) => (
+              <img
+                key={i}
+                src={`${img.url}?x-oss-process=image/resize,w_300`}
+                alt=""
+                className={styles.image}
+                onClick={() => setLightbox(`${img.url}?x-oss-process=image/resize,w_1200`)}
+              />
+            ))}
           </div>
         </div>
       ))}

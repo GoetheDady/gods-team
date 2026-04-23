@@ -104,3 +104,15 @@
   max-height: 90vh;
   object-fit: contain;
 }
+
+.loadMore {
+  text-align: center;
+  padding: 8px;
+  color: var(--text-muted);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.loadMore:hover {
+  color: var(--gold);
+}
