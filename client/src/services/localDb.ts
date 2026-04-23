@@ -1,39 +1,3 @@
-import type { Sqlite3Static, Database } from '@sqlite.org/sqlite-wasm';
-
-let db: Database | null = null;
-
-async function getDb(): Promise<Database> {
-  if (db) return db;
-
-  const sqlite3: Sqlite3Static = await new Promise((resolve, reject) => {
-    import('@sqlite.org/sqlite-wasm').then(({ default: sqlite3InitModule }) => {
-      sqlite3InitModule({ print: console.log, printErr: console.error })
-        .then(resolve)
-        .catch(reject);
-    });
-  });
-
-  if (sqlite3.capi.sqlite3_vfs_find('opfs')) {
-    db = new sqlite3.oo1.OpfsDb('/chatroom.db');
-  } else {
-    console.warn('OPFS not available, using in-memory storage');
-    db = new sqlite3.oo1.DB(':memory:');
-  }
-
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS messages (
-      id TEXT PRIMARY KEY,
-      chat_id TEXT NOT NULL,
-      from_id TEXT NOT NULL,
-      content TEXT NOT NULL,
-      timestamp INTEGER NOT NULL
-    );
-    CREATE INDEX IF NOT EXISTS idx_messages_chat_id ON messages(chat_id, timestamp);
-  `);
-
-  return db;
-}
-
 export interface LocalMessage {
   id: string;
   chat_id: string;
@@ -42,38 +6,63 @@ export interface LocalMessage {
   timestamp: number;
 }
 
+const DB_NAME = 'chatroom';
+const STORE = 'messages';
+const DB_VERSION = 1;
+
+let dbPromise: Promise<IDBDatabase> | null = null;
+
+function openDb(): Promise<IDBDatabase> {
+  if (dbPromise) return dbPromise;
+  dbPromise = new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains(STORE)) {
+        const store = db.createObjectStore(STORE, { keyPath: 'id' });
+        store.createIndex('by_chat', ['chat_id', 'timestamp'], { unique: false });
+      }
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+  return dbPromise;
+}
+
 export async function saveMessage(msg: LocalMessage): Promise<void> {
-  const db = await getDb();
-  db.exec({
-    sql: 'INSERT OR IGNORE INTO messages (id, chat_id, from_id, content, timestamp) VALUES (?,?,?,?,?)',
-    bind: [msg.id, msg.chat_id, msg.from_id, msg.content, msg.timestamp],
+  const db = await openDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE, 'readwrite');
+    const req = tx.objectStore(STORE).put(msg);
+    req.onsuccess = () => resolve();
+    req.onerror = () => reject(req.error);
   });
 }
 
 export async function getMessages(chatId: string, limit = 100): Promise<LocalMessage[]> {
-  const db = await getDb();
-  const rows: LocalMessage[] = [];
-  db.exec({
-    sql: `SELECT id, chat_id, from_id, content, timestamp
-          FROM messages
-          WHERE chat_id = ?
-          ORDER BY timestamp ASC
-          LIMIT ?`,
-    bind: [chatId, limit],
-    callback: (row) => {
-      rows.push({
-        id: row[0] as string,
-        chat_id: row[1] as string,
-        from_id: row[2] as string,
-        content: row[3] as string,
-        timestamp: row[4] as number,
-      });
-    },
+  const db = await openDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE, 'readonly');
+    const index = tx.objectStore(STORE).index('by_chat');
+    const range = IDBKeyRange.bound([chatId, 0], [chatId, Infinity]);
+    const req = index.getAll(range, limit);
+    req.onsuccess = () => resolve(req.result as LocalMessage[]);
+    req.onerror = () => reject(req.error);
   });
-  return rows;
 }
 
 export async function clearChat(chatId: string): Promise<void> {
-  const db = await getDb();
-  db.exec({ sql: 'DELETE FROM messages WHERE chat_id = ?', bind: [chatId] });
+  const db = await openDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE, 'readwrite');
+    const index = tx.objectStore(STORE).index('by_chat');
+    const range = IDBKeyRange.bound([chatId, 0], [chatId, Infinity]);
+    const req = index.openCursor(range);
+    req.onsuccess = () => {
+      const cursor = req.result;
+      if (cursor) { cursor.delete(); cursor.continue(); }
+      else resolve();
+    };
+    req.onerror = () => reject(req.error);
+  });
 }

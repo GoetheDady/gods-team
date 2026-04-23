@@ -1,9 +1,36 @@
 export async function generateKeyPair(): Promise<CryptoKeyPair> {
   return crypto.subtle.generateKey(
     { name: 'ECDH', namedCurve: 'P-256' },
-    false,
+    true,
     ['deriveKey']
   );
+}
+
+// Persist the ECDH key pair across React StrictMode double-mounts and page refreshes
+const KEY_STORAGE = 'ecdh_keypair_v1';
+
+export async function getOrCreateKeyPair(): Promise<CryptoKeyPair> {
+  try {
+    const stored = localStorage.getItem(KEY_STORAGE);
+    if (stored) {
+      const { pub, priv } = JSON.parse(stored);
+      const pubBuf = Uint8Array.from(atob(pub), c => c.charCodeAt(0));
+      const privBuf = Uint8Array.from(atob(priv), c => c.charCodeAt(0));
+      const publicKey = await crypto.subtle.importKey('spki', pubBuf, { name: 'ECDH', namedCurve: 'P-256' }, true, []);
+      const privateKey = await crypto.subtle.importKey('pkcs8', privBuf, { name: 'ECDH', namedCurve: 'P-256' }, true, ['deriveKey']);
+      return { publicKey, privateKey };
+    }
+  } catch {
+    // fall through to generate new key pair
+  }
+  const keyPair = await generateKeyPair();
+  const pubBuf = await crypto.subtle.exportKey('spki', keyPair.publicKey);
+  const privBuf = await crypto.subtle.exportKey('pkcs8', keyPair.privateKey);
+  localStorage.setItem(KEY_STORAGE, JSON.stringify({
+    pub: btoa(String.fromCharCode(...new Uint8Array(pubBuf))),
+    priv: btoa(String.fromCharCode(...new Uint8Array(privBuf))),
+  }));
+  return keyPair;
 }
 
 export async function exportPublicKey(publicKey: CryptoKey): Promise<string> {

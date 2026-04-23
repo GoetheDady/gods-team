@@ -1,4 +1,5 @@
-import MessageList, { Message } from './MessageList';
+import MessageList from './MessageList';
+import type { Message } from './MessageList';
 import MessageInput from './MessageInput';
 import styles from './PrivatePanel.module.css';
 
