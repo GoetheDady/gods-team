@@ -39,7 +39,7 @@ export default function Avatar({ src, name, size = 32 }: Props) {
       className={styles.fallback}
       style={{ width: size, height: size, background: getColor(name), fontSize: size * 0.4 }}
     >
-      {name.charAt(0)}
+      {name.charAt(0).toUpperCase()}
     </div>
   );
 }
