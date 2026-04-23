@@ -52,7 +52,7 @@ export default function MessageList({ messages, currentUserId, typingUsernames, 
         return (
           <div
             key={msg.id}
-            className={`${styles.message} ${isSelf ? styles.self : styles.other}`}
+            className={`${styles.message} ${isSelf ? styles.self : ''}`}
           >
             <div className={styles.avatar}>
               <Avatar src={null} name={msg.from_username} size={34} />
