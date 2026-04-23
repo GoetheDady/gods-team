@@ -48,7 +48,6 @@ router.post('/register', async (req: Request, res: Response) => {
   });
 
   const token = signToken(userId, username);
-  res.cookie('token', token, { httpOnly: true, sameSite: 'strict', maxAge: 7 * 24 * 3600 * 1000 });
   res.json({ userId, username });
 });
 
@@ -69,12 +68,10 @@ router.post('/login', async (req: Request, res: Response) => {
   }
 
   const token = signToken(user.id, user.username);
-  res.cookie('token', token, { httpOnly: true, sameSite: 'strict', maxAge: 7 * 24 * 3600 * 1000 });
   res.json({ userId: user.id, username: user.username });
 });
 
 router.post('/logout', (_req, res: Response) => {
-  res.clearCookie('token');
   res.json({ ok: true });
 });
 
