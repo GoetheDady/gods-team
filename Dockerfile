@@ -12,7 +12,7 @@ FROM node:22-alpine AS server-build
 RUN apk add --no-cache python3 make g++
 RUN corepack enable && corepack prepare pnpm@latest --activate
 WORKDIR /app/server
-COPY server/package.json server/pnpm-lock.yaml ./
+COPY server/package.json server/pnpm-lock.yaml server/.npmrc ./
 RUN pnpm install --frozen-lockfile
 COPY server/ ./
 RUN npx tsc
@@ -21,15 +21,11 @@ RUN npx tsc
 FROM node:22-alpine
 RUN apk add --no-cache python3 make g++ \
     && rm -rf /var/cache/apk/*
-RUN corepack enable && corepack prepare pnpm@latest --activate
 WORKDIR /app/server
 
-# Install production dependencies (compiles better-sqlite3 for Linux)
-COPY server/package.json server/pnpm-lock.yaml ./
-RUN pnpm install --frozen-lockfile --prod
-
-# Copy server build output
+# Copy server build output and compiled node_modules (includes better-sqlite3 native binary)
 COPY --from=server-build /app/server/dist ./dist
+COPY --from=server-build /app/server/node_modules ./node_modules
 
 # Copy client build output
 COPY --from=client-build /app/client/dist ../client/dist

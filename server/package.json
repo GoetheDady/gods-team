@@ -14,6 +14,9 @@
   "author": "",
   "license": "ISC",
   "type": "commonjs",
+  "pnpm": {
+    "onlyBuiltDependencies": ["better-sqlite3", "bcrypt"]
+  },
   "dependencies": {
     "@types/cookie-parser": "^1.4.10",
     "bcrypt": "^6.0.0",
