@@ -13,9 +13,18 @@ export default function MessageInput({ onSend, onTyping, disabled, placeholder }
   const [text, setText] = useState('');
   const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const composing = useRef(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  function autoResize() {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${el.scrollHeight}px`;
+  }
 
   function handleChange(e: ChangeEvent<HTMLTextAreaElement>) {
     setText(e.target.value);
+    autoResize();
     onTyping();
     if (typingTimer.current) clearTimeout(typingTimer.current);
   }
@@ -32,11 +41,13 @@ export default function MessageInput({ onSend, onTyping, disabled, placeholder }
     if (!trimmed || disabled) return;
     onSend(trimmed);
     setText('');
+    if (textareaRef.current) textareaRef.current.style.height = 'auto';
   }
 
   return (
     <div className={styles.container}>
       <textarea
+        ref={textareaRef}
         className={styles.input}
         value={text}
         onChange={handleChange}
