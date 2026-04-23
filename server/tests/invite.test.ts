@@ -4,18 +4,17 @@ import { app } from '../src/index';
 import { setupTestDb, teardownTestDb } from './setup';
 
 describe('Invite API', () => {
-  let authCookie: string;
+  let accessToken: string;
 
   beforeAll(async () => {
     await setupTestDb();
 
-    // Register and login to get auth cookie
+    // Register to get accessToken
     const registerRes = await request(app)
       .post('/api/auth/register')
       .send({ username: 'invitetest', password: 'testpass123', invite_code: 'ADMIN0001' });
 
-    const cookies = registerRes.headers['set-cookie'];
-    authCookie = Array.isArray(cookies) ? cookies[0] : cookies;
+    accessToken = registerRes.body.accessToken;
   });
 
   afterAll(async () => {
@@ -31,7 +30,7 @@ describe('Invite API', () => {
   it('should generate an invite code when authenticated', async () => {
     const res = await request(app)
       .post('/api/invite/generate')
-      .set('Cookie', authCookie);
+      .set('Authorization', `Bearer ${accessToken}`);
 
     expect(res.status).toBe(200);
     expect(res.body.code).toBeDefined();
@@ -49,11 +48,11 @@ describe('Invite API', () => {
     // Generate one first
     await request(app)
       .post('/api/invite/generate')
-      .set('Cookie', authCookie);
+      .set('Authorization', `Bearer ${accessToken}`);
 
     const res = await request(app)
       .get('/api/invite/mine')
-      .set('Cookie', authCookie);
+      .set('Authorization', `Bearer ${accessToken}`);
 
     expect(res.status).toBe(200);
     expect(Array.isArray(res.body.codes)).toBe(true);

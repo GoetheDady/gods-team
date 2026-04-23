@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import http from 'http';
 import path from 'path';
-import cookieParser from 'cookie-parser';
+
 import { initDb } from './pg';
 import authRouter from './auth';
 import inviteRouter from './invite';
@@ -18,7 +18,7 @@ app.use(cors({
   credentials: true,
 }));
 app.use(express.json());
-app.use(cookieParser());
+
 
 app.use('/api/auth', authRouter);
 app.use('/api/invite', inviteRouter);
