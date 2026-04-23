@@ -16,7 +16,6 @@
   "type": "commonjs",
   "pnpm": {
     "onlyBuiltDependencies": [
-      "better-sqlite3",
       "bcrypt"
     ]
   },
