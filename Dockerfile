@@ -1,17 +1,19 @@
 # Stage 1: Build client
 FROM node:22-alpine AS client-build
+RUN corepack enable && corepack prepare pnpm@latest --activate
 WORKDIR /app/client
-COPY client/package*.json ./
-RUN npm install
+COPY client/package.json client/pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile
 COPY client/ ./
-RUN npm run build
+RUN pnpm run build
 
 # Stage 2: Build server
 FROM node:22-alpine AS server-build
 RUN apk add --no-cache python3 make g++
+RUN corepack enable && corepack prepare pnpm@latest --activate
 WORKDIR /app/server
-COPY server/package*.json ./
-RUN npm install
+COPY server/package.json server/pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile
 COPY server/ ./
 RUN npx tsc
 
@@ -19,11 +21,12 @@ RUN npx tsc
 FROM node:22-alpine
 RUN apk add --no-cache python3 make g++ \
     && rm -rf /var/cache/apk/*
+RUN corepack enable && corepack prepare pnpm@latest --activate
 WORKDIR /app/server
 
 # Install production dependencies (compiles better-sqlite3 for Linux)
-COPY server/package*.json ./
-RUN npm install --omit=dev
+COPY server/package.json server/pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile --prod
 
 # Copy server build output
 COPY --from=server-build /app/server/dist ./dist

@@ -74,29 +74,29 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ```bash
 # 启动后端（端口 3000）
-cd server && npm run dev
+cd server && pnpm dev
 
 # 启动前端（端口 5173）
-cd client && npm run dev
+cd client && pnpm dev
 
 # 后端单测
-cd server && npm test
+cd server && pnpm test
 
 # 运行单个后端测试文件
-cd server && npx vitest run tests/auth.test.ts
+cd server && pnpm exec vitest run tests/auth.test.ts
 
 # 前端浏览器测试（Vitest + Playwright Chromium）
-cd client && npm run test:browser
+cd client && pnpm test:browser
 
 # 运行单个前端测试文件
-cd client && npx vitest --config vitest.config.browser.ts run tests/crypto.test.ts
+cd client && pnpm exec vitest --config vitest.config.browser.ts run tests/crypto.test.ts
 
 # 前端 lint
-cd client && npm run lint
+cd client && pnpm lint
 
 # 构建
-cd client && npm run build
-cd server && npm run build
+cd client && pnpm build
+cd server && pnpm build
 ```
 
 首次启动使用管理员邀请码 `ADMIN0001` 注册第一个账号。
