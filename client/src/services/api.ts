@@ -67,6 +67,13 @@ export const api = {
     }>('/invite/mine');
   },
 
+  sendMessage(chatId: string, content: string, images?: { url: string }[], to?: string) {
+    return request<{ id: string; createdAt: number }>('/messages', {
+      method: 'POST',
+      body: JSON.stringify({ chatId, content, images, to }),
+    });
+  },
+
   getMessages(chatId: string, before?: number): Promise<{ messages: ServerMessage[]; hasMore: boolean }> {
     const qs = before ? `?before=${before}` : '';
     return request(`/messages/${encodeURIComponent(chatId)}${qs}`);

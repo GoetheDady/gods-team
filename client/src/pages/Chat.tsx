@@ -128,21 +128,13 @@ export default function Chat({ userId, username, onLogout }: Props) {
   }
 
   function sendHallMessage(text: string, imageUrl?: string) {
-    wsClient.send({
-      type: 'hall_message',
-      content: text,
-      images: imageUrl ? [{ url: imageUrl }] : undefined,
-    });
+    api.sendMessage('hall', text, imageUrl ? [{ url: imageUrl }] : undefined).catch(console.error);
   }
 
   function sendPrivateMessage(text: string, imageUrl?: string) {
     if (!activePeerId) return;
-    wsClient.send({
-      type: 'private_message',
-      to: activePeerId,
-      content: text,
-      images: imageUrl ? [{ url: imageUrl }] : undefined,
-    });
+    const chatId = [userId, activePeerId].sort().join(':');
+    api.sendMessage(chatId, text, imageUrl ? [{ url: imageUrl }] : undefined, activePeerId).catch(console.error);
   }
 
   function sendTyping() { wsClient.send({ type: 'typing' }); }
