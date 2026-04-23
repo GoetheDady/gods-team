@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { api } from '../services/api';
+import { api, clearTokens } from '../services/api';
 import type { ServerMessage } from '../services/api';
 import { wsClient } from '../services/ws';
 import type { WsMessage } from '../services/ws';
@@ -106,9 +106,8 @@ export default function Chat({ userId, username, onLogout }: Props) {
     });
 
     async function init() {
-      // 获取 WS token 并建立连接
-      const { token } = await api.getToken();
-      wsClient.connect(token);
+      // 直接连接 WS，连接建立后自动发送 auth 消息
+      wsClient.connect();
       // 加载大厅最近 50 条消息
       const { messages, hasMore } = await api.getMessages('hall');
       setHallHasMore(hasMore);
@@ -180,6 +179,7 @@ export default function Chat({ userId, username, onLogout }: Props) {
 
   async function handleLogout() {
     await api.logout();
+    clearTokens();
     onLogout();
     navigate('/login');
   }

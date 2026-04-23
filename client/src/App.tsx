@@ -5,6 +5,7 @@ import Register from './pages/Register';
 import Chat from './pages/Chat';
 import Settings from './pages/Settings';
 import { api } from './services/api';
+import { getAccessToken, clearTokens } from './services/api';
 
 export default function App() {
   const [auth, setAuth] = useState<{ userId: string; username: string } | null | undefined>(
@@ -12,9 +13,19 @@ export default function App() {
   );
 
   useEffect(() => {
+    // 启动时检查 localStorage 中是否有有效 token
+    const token = getAccessToken();
+    if (!token) {
+      setAuth(null);
+      return;
+    }
+    // 带 Authorization 头验证 token 是否仍然有效
     api.me()
       .then(user => setAuth(user))
-      .catch(() => setAuth(null));
+      .catch(() => {
+        clearTokens();
+        setAuth(null);
+      });
   }, []);
 
   if (auth === undefined) return null;

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { api } from '../services/api';
+import { api, setTokens } from '../services/api';
 import styles from './Login.module.css';
 
 interface Props {
@@ -20,8 +20,9 @@ export default function Login({ onLogin }: Props) {
     setError('');
     setLoading(true);
     try {
-      const user = await api.login(username, password);
-      onLogin(user.userId, user.username);
+      const res = await api.login(username, password);
+      setTokens(res.accessToken, res.refreshToken);
+      onLogin(res.userId, res.username);
       navigate('/chat');
     } catch (err) {
       setError(err instanceof Error ? err.message : '登录失败');

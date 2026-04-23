@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { api } from '../services/api';
+import { api, setTokens } from '../services/api';
 import styles from './Register.module.css';
 
 interface Props {
@@ -21,8 +21,9 @@ export default function Register({ onLogin }: Props) {
     setError('');
     setLoading(true);
     try {
-      const user = await api.register(username, password, inviteCode.trim().toUpperCase());
-      onLogin(user.userId, user.username);
+      const res = await api.register(username, password, inviteCode.trim().toUpperCase());
+      setTokens(res.accessToken, res.refreshToken);
+      onLogin(res.userId, res.username);
       navigate('/chat');
     } catch (err) {
       setError(err instanceof Error ? err.message : '注册失败');
