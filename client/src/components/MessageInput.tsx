@@ -4,7 +4,7 @@ import { Paperclip, X } from 'lucide-react';
 import styles from './MessageInput.module.css';
 
 interface Props {
-  onSend: (text: string, file?: File) => void;
+  onSend: (text: string, imageUrl?: string) => void;
   onTyping: () => void;
   disabled?: boolean;
   placeholder?: string;
@@ -12,7 +12,7 @@ interface Props {
 
 export default function MessageInput({ onSend, onTyping, disabled, placeholder }: Props) {
   const [text, setText] = useState('');
-  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [pendingImageUrl, setPendingImageUrl] = useState<string | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const composing = useRef(false);
@@ -59,20 +59,20 @@ export default function MessageInput({ onSend, onTyping, disabled, placeholder }
 
   function addImage(file: File) {
     if (preview) URL.revokeObjectURL(preview);
-    setPendingFile(file);
+    setPendingImageUrl(null);
     setPreview(URL.createObjectURL(file));
   }
 
   function removeImage() {
     if (preview) URL.revokeObjectURL(preview);
-    setPendingFile(null);
+    setPendingImageUrl(null);
     setPreview(null);
   }
 
   function submit() {
     const trimmed = text.trim();
-    if ((!trimmed && !pendingFile) || disabled) return;
-    onSend(trimmed, pendingFile || undefined);
+    if ((!trimmed && !pendingImageUrl) || disabled) return;
+    onSend(trimmed, pendingImageUrl || undefined);
     setText('');
     removeImage();
     if (textareaRef.current) textareaRef.current.style.height = 'auto';
@@ -115,7 +115,7 @@ export default function MessageInput({ onSend, onTyping, disabled, placeholder }
           disabled={disabled}
           rows={1}
         />
-        <button className={styles.send} onClick={submit} disabled={disabled || (!text.trim() && !pendingFile)}>
+        <button className={styles.send} onClick={submit} disabled={disabled || (!text.trim() && !pendingImageUrl)}>
           发送
         </button>
       </div>
