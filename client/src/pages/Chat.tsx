@@ -70,11 +70,10 @@ export default function Chat({ userId, username, nickname, avatarUrl, onLogout }
         users.forEach(u => usernameMap.current.set(u.id, u.nickname ?? u.username));
         setOnlineUsers(users);
       } else if (msg.type === 'user_joined') {
-        const m = msg as any;
-        usernameMap.current.set(m.userId, m.nickname ?? m.username);
+        usernameMap.current.set(msg.userId!, msg.nickname ?? msg.username!);
         setOnlineUsers(prev => {
-          if (prev.some(u => u.id === m.userId)) return prev;
-          return [...prev, { id: m.userId, username: m.username, nickname: m.nickname ?? null, avatar_url: m.avatar_url ?? null }];
+          if (prev.some(u => u.id === msg.userId)) return prev;
+          return [...prev, { id: msg.userId!, username: msg.username!, nickname: msg.nickname ?? null, avatar_url: msg.avatar_url ?? null }];
         });
       } else if (msg.type === 'user_left') {
         setOnlineUsers(prev => prev.filter(u => u.id !== msg.userId));

@@ -5,9 +5,11 @@ export interface WsMessage {
   from?: string;
   payload?: Record<string, unknown>;
   timestamp?: number;
-  users?: Array<{ id: string; username: string }>;
+  users?: Array<{ id: string; username: string; nickname?: string | null; avatar_url?: string | null }>;
   userId?: string;
   username?: string;
+  nickname?: string | null;
+  avatar_url?: string | null;
 }
 
 type MessageHandler = (msg: WsMessage) => void;
