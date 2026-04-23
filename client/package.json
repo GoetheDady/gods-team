@@ -12,7 +12,6 @@
     "test:browser:watch": "vitest --config vitest.config.browser.ts"
   },
   "dependencies": {
-    "@sqlite.org/sqlite-wasm": "^3.53.0-build1",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
     "react-router-dom": "^7.14.2"

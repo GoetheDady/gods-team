@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-本文件为 Claude Code（claude.ai/code）在此代码库中工作时提供指导。
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 减少 LLM 常见编码错误的行为准则。根据需要与项目特定说明合并使用。
 
@@ -65,3 +65,74 @@
 ---
 
 **这些准则有效的标志：** diff 中多余的改动更少、因过度复杂而返工的情况更少、澄清性问题在实现前提出而非在出错后补问。
+
+---
+
+## 项目：江湖 E2EE 聊天室
+
+### 常用命令
+
+```bash
+# 启动后端（端口 3000）
+cd server && npm run dev
+
+# 启动前端（端口 5173）
+cd client && npm run dev
+
+# 后端单测
+cd server && npm test
+
+# 前端浏览器测试（Vitest + Playwright Chromium）
+cd client && npm run test:browser
+
+# 构建
+cd client && npm run build
+cd server && npm run build
+```
+
+首次启动使用管理员邀请码 `ADMIN0001` 注册第一个账号。
+
+### 架构概览
+
+**后端** (`server/src/`)
+- `index.ts` — Express 入口，挂载路由，升级 WebSocket
+- `db.ts` — `better-sqlite3` 单例，同步 API，表：`users`、`invite_codes`、`pubkeys`
+- `auth.ts` — 注册（邀请码验证 + bcrypt）、登录、JWT 签发
+- `invite.ts` — 邀请码 CRUD（管理员权限由 JWT payload 中 `isAdmin` 标志控制）
+- `pubkey.ts` — 公钥上传/查询（每个用户一条记录，upsert）
+- `ws.ts` — WebSocket 中继：JWT 鉴权后加入房间，纯转发密文，不解析消息内容
+
+**前端** (`client/src/`)
+- `services/crypto.ts` — Web Crypto API 封装：ECDH P-256 密钥对、AES-256-GCM 加解密、密钥包装/解包
+- `services/ws.ts` — WebSocket 客户端，事件发布订阅，单例
+- `services/localDb.ts` — IndexedDB 封装，存储明文消息（解密后），索引 `[chat_id, timestamp]`
+- `services/api.ts` — fetch 封装，REST API 调用
+- `pages/Chat.tsx` — 核心页面，管理 E2EE 状态机、WebSocket 消息处理、大厅/私聊逻辑
+- `pages/Settings.tsx` — 邀请码管理
+- `App.tsx` — 路由守卫，`/me` 接口验证登录态
+
+### E2EE 协议关键点
+
+**大厅密钥权威选举**：在线用户列表中 UUID 字典序最小的用户为权威节点，负责生成 `hallKey`（AES-256-GCM）并用 ECDH 派生的共享密钥逐一分发给其他成员。
+
+**session key 缓存失效**：`user_joined` 事件中必须 `sessionKeys.current.delete(u.id)`，因为重连用户可能已重新生成密钥对。
+
+**React StrictMode 陷阱**（`Chat.tsx`）：
+- `wsClient.on()` 必须在 `useEffect` 同步顶部注册（不能在 `async init()` 内部），否则 cleanup 先于 init 完成执行，导致 handler 无法取消订阅，出现双倍消息。
+- WS handler 闭包内不能读取 React state（stale closure）；`activePeerId` 需用 `activePeerIdRef` ref 同步。
+
+**IndexedDB vs SQLite WASM**：`sqlite-wasm` 的 OPFS VFS 需要 `FileSystemSyncAccessHandle`，该 API 仅在 Worker 上下文可用，主线程调用会静默失败。本项目使用原生 IndexedDB。
+
+### 数据模型（SQLite）
+
+```sql
+users(id TEXT PK, username TEXT UNIQUE, password TEXT, is_admin INTEGER, created_at INTEGER)
+invite_codes(code TEXT PK, created_by TEXT, used_by TEXT, used_at INTEGER, created_at INTEGER)
+pubkeys(user_id TEXT PK, key_data TEXT, updated_at INTEGER)
+```
+
+### 注意事项
+
+- `import type` 必须用于仅类型导入（TypeScript isolatedModules 要求）
+- vite dev server 已配置 COOP/COEP 响应头（原为 SQLite WASM SharedArrayBuffer 所需，现已无实际用途但保留无害）
+- 前端通过 `/api` proxy 访问后端，WebSocket 通过 `/ws` proxy
