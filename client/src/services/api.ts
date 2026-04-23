@@ -16,6 +16,15 @@ export interface User {
   username: string;
 }
 
+export interface ServerMessage {
+  id: string;
+  senderId: string;
+  senderName: string;
+  content: string;
+  images: { url: string }[] | null;
+  createdAt: number;
+}
+
 export const api = {
   register(username: string, password: string, invite_code: string) {
     return request<User>('/auth/register', {
@@ -43,17 +52,6 @@ export const api = {
     return request<{ token: string }>('/auth/token');
   },
 
-  uploadPubkey(key_data: string) {
-    return request<{ ok: boolean }>('/users/me/pubkey', {
-      method: 'POST',
-      body: JSON.stringify({ key_data }),
-    });
-  },
-
-  getPubkey(userId: string) {
-    return request<{ key_data: string }>(`/users/${userId}/pubkey`);
-  },
-
   generateInvite() {
     return request<{ code: string }>('/invite/generate', { method: 'POST' });
   },
@@ -69,15 +67,12 @@ export const api = {
     }>('/invite/mine');
   },
 
-  uploadFile(encryptedPayload: string): Promise<{ url: string }> {
-    return fetch(BASE + '/upload', {
-      method: 'POST',
-      credentials: 'include',
-      body: encryptedPayload,
-    }).then(async res => {
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Upload failed');
-      return data as { url: string };
-    });
+  getMessages(chatId: string, before?: number): Promise<{ messages: ServerMessage[]; hasMore: boolean }> {
+    const qs = before ? `?before=${before}` : '';
+    return request(`/messages/${encodeURIComponent(chatId)}${qs}`);
+  },
+
+  getOssSign(): Promise<{ url: string; fields: Record<string, string> }> {
+    return request('/oss/sign');
   },
 };
