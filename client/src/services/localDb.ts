@@ -1,9 +1,16 @@
+export interface ImageMeta {
+  url: string;
+  width: number;
+  height: number;
+}
+
 export interface LocalMessage {
   id: string;
   chat_id: string;
   from_id: string;
   from_username: string;
   content: string;
+  images?: ImageMeta[];
   timestamp: number;
 }
 

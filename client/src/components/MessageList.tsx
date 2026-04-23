@@ -1,11 +1,18 @@
 import { useEffect, useRef } from 'react';
 import styles from './MessageList.module.css';
 
+export interface ImageMeta {
+  url: string;
+  width: number;
+  height: number;
+}
+
 export interface Message {
   id: string;
   from_id: string;
   from_username: string;
   content: string;
+  images?: ImageMeta[];
   timestamp: number;
 }
 
@@ -40,11 +47,12 @@ export default function MessageList({ messages, currentUserId, typingUsernames }
           <div className={styles.bubble}>{msg.content}</div>
         </div>
       ))}
-      {typingUsernames.length > 0 && (
-        <div className={styles.typing}>
-          {typingUsernames.join('、')} 正在输入...
-        </div>
-      )}
+      <div
+        className={styles.typing}
+        style={{ visibility: typingUsernames.length > 0 ? 'visible' : 'hidden' }}
+      >
+        {typingUsernames.join('、')} 正在输入...
+      </div>
       <div ref={bottomRef} />
     </div>
   );
