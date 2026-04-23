@@ -194,9 +194,9 @@ export default function Settings() {
           {profileSuccess && <div className={styles.success}>{profileSuccess}</div>}
         </div>
 
-        {/* 邀请码卡片 */}
+        {/* 邀请码：生成 */}
         <div className={styles.section}>
-          <div className={styles.sectionTitle}>邀请码管理</div>
+          <div className={styles.sectionTitle}>生成新邀请码</div>
           <button className={styles.generateBtn} onClick={generate} disabled={generating}>
             {generating ? '生成中...' : '生成邀请码'}
           </button>
@@ -209,6 +209,11 @@ export default function Settings() {
               </button>
             </div>
           )}
+        </div>
+
+        {/* 邀请码：列表 */}
+        <div className={styles.section}>
+          <div className={styles.sectionTitle}>我的邀请码 ({codes.length})</div>
           {codes.length === 0 ? (
             <div className={styles.empty}>还没有邀请码</div>
           ) : (
