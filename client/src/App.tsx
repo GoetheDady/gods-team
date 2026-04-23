@@ -8,9 +8,12 @@ import { api } from './services/api';
 import { getAccessToken, clearTokens } from './services/api';
 
 export default function App() {
-  const [auth, setAuth] = useState<{ userId: string; username: string } | null | undefined>(
-    undefined
-  );
+  const [auth, setAuth] = useState<{
+    userId: string;
+    username: string;
+    nickname: string | null;
+    avatar_url: string | null;
+  } | null | undefined>(undefined);
 
   useEffect(() => {
     // 启动时检查 localStorage 中是否有有效 token
@@ -31,7 +34,7 @@ export default function App() {
   if (auth === undefined) return null;
 
   function handleLogin(userId: string, username: string) {
-    setAuth({ userId, username });
+    setAuth({ userId, username, nickname: null, avatar_url: null });
   }
 
   return (
@@ -39,7 +42,7 @@ export default function App() {
       <Routes>
         <Route path="/login" element={auth ? <Navigate to="/chat" /> : <Login onLogin={handleLogin} />} />
         <Route path="/register" element={auth ? <Navigate to="/chat" /> : <Register onLogin={handleLogin} />} />
-        <Route path="/chat" element={auth ? <Chat userId={auth.userId} username={auth.username} onLogout={() => setAuth(null)} /> : <Navigate to="/login" />} />
+        <Route path="/chat" element={auth ? <Chat userId={auth.userId} username={auth.username} nickname={auth.nickname} avatarUrl={auth.avatar_url} onLogout={() => setAuth(null)} /> : <Navigate to="/login" />} />
         <Route path="/settings" element={auth ? <Settings /> : <Navigate to="/login" />} />
         <Route path="*" element={<Navigate to={auth ? '/chat' : '/login'} />} />
       </Routes>

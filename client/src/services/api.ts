@@ -80,6 +80,8 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 export interface User {
   userId: string;
   username: string;
+  nickname: string | null;
+  avatar_url: string | null;
 }
 
 export interface ServerMessage {
@@ -143,5 +145,12 @@ export const api = {
 
   getOssSign(): Promise<{ url: string; fields: Record<string, string> }> {
     return request('/oss/sign');
+  },
+
+  updateProfile(data: { nickname?: string; avatar_url?: string }) {
+    return request<{ ok: boolean }>('/users/me', {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
   },
 };
