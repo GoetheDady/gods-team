@@ -41,6 +41,17 @@ export async function initDb() {
       created_at  BIGINT NOT NULL
     )
   `;
+  await sql`
+    CREATE TABLE IF NOT EXISTS refresh_tokens (
+      token      TEXT PRIMARY KEY,
+      user_id    TEXT REFERENCES users(id),
+      expires_at BIGINT NOT NULL
+    )
+  `;
+  await sql`
+    CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user
+      ON refresh_tokens(user_id)
+  `;
   // 复合索引：按 chat_id 分区查询消息，按时间倒序取最新 N 条
   // 支持大厅和私聊两种场景的分页加载
   await sql`
