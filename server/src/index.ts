@@ -8,6 +8,7 @@ import authRouter from './auth';
 import inviteRouter from './invite';
 import messagesRouter from './messages';
 import ossRouter from './oss';
+import usersRouter from './users';
 import { setupWebSocket } from './ws';
 
 const app = express();
@@ -23,6 +24,7 @@ app.use('/api/auth', authRouter);
 app.use('/api/invite', inviteRouter);
 app.use('/api/messages', messagesRouter);
 app.use('/api/oss', ossRouter);
+app.use('/api/users', usersRouter);
 app.get('/api/health', (_req, res) => res.json({ ok: true }));
 
 if (process.env.NODE_ENV === 'production') {
