@@ -2,6 +2,7 @@ import { WebSocketServer, WebSocket } from 'ws';
 import type { IncomingMessage } from 'http';
 import type { Server } from 'http';
 import jwt from 'jsonwebtoken';
+import sql from './pg';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-in-prod';
 
@@ -9,6 +10,8 @@ interface Client {
   ws: WebSocket;
   userId: string;
   username: string;
+  nickname: string | null;
+  avatarUrl: string | null;
 }
 
 // 所有已连接的客户端，key 为 userId
@@ -57,13 +60,25 @@ export function setupWebSocket(server: Server) {
             const userId = payload.userId;
             const username = payload.username;
 
+            // 从 DB 读取最新的 nickname 和 avatar_url
+            const [profile] = await sql<{ nickname: string | null; avatar_url: string | null }[]>`
+              SELECT nickname, avatar_url FROM users WHERE id = ${userId}
+            `;
+            const nickname = profile?.nickname ?? null;
+            const avatarUrl = profile?.avatar_url ?? null;
+
             authenticated = true;
-            clients.set(userId, { ws, userId, username });
+            clients.set(userId, { ws, userId, username, nickname, avatarUrl });
 
             // 验证通过：发送在线列表 + 广播上线
-            const onlineUsers = Array.from(clients.values()).map(c => ({ id: c.userId, username: c.username }));
+            const onlineUsers = Array.from(clients.values()).map(c => ({
+              id: c.userId,
+              username: c.username,
+              nickname: c.nickname,
+              avatar_url: c.avatarUrl,
+            }));
             ws.send(JSON.stringify({ type: 'online_users', users: onlineUsers }));
-            wsBroadcast({ type: 'user_joined', userId, username }, userId);
+            wsBroadcast({ type: 'user_joined', userId, username, nickname, avatar_url: avatarUrl }, userId);
           } catch {
             ws.close(4001, 'Invalid token');
           }

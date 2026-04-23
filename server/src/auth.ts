@@ -123,8 +123,16 @@ router.post('/logout', requireAuth, async (req: AuthRequest, res: Response) => {
 });
 
 // 验证当前 token 有效性
-router.get('/me', requireAuth, (req: AuthRequest, res: Response) => {
-  res.json({ userId: req.userId, username: req.username });
+router.get('/me', requireAuth, async (req: AuthRequest, res: Response) => {
+  const [user] = await sql<{ nickname: string | null; avatar_url: string | null }[]>`
+    SELECT nickname, avatar_url FROM users WHERE id = ${req.userId!}
+  `;
+  res.json({
+    userId: req.userId,
+    username: req.username,
+    nickname: user?.nickname ?? null,
+    avatar_url: user?.avatar_url ?? null,
+  });
 });
 
 export default router;

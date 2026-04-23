@@ -38,18 +38,23 @@ router.post('/', requireAuth, async (req: AuthRequest, res) => {
     }
   }
 
+  const [userProfile] = await sql<{ nickname: string | null }[]>`
+    SELECT nickname FROM users WHERE id = ${userId}
+  `;
+  const senderName = userProfile?.nickname ?? username;
+
   // 先写库再推送，确保消息持久化后在线用户才能收到
   await sql`
     INSERT INTO messages (id, chat_id, sender_id, sender_name, content, images, created_at)
-    VALUES (${id}, ${chatId}, ${userId}, ${username}, ${msgContent}, ${msgImages ? sql.json(msgImages) : null}, ${timestamp})
+    VALUES (${id}, ${chatId}, ${userId}, ${senderName}, ${msgContent}, ${msgImages ? sql.json(msgImages) : null}, ${timestamp})
   `;
 
   if (chatId === 'hall') {
     // 大厅消息：广播给所有在线用户（排除发送者，发送者客户端已在本地添加）
-    wsBroadcast({ type: 'hall_message', id, from: userId, fromName: username, content: msgContent, images: msgImages, timestamp });
+    wsBroadcast({ type: 'hall_message', id, from: userId, fromName: senderName, content: msgContent, images: msgImages, timestamp });
   } else {
     // 私聊消息：双方各收一份（发送者也需要收到，确保多设备同步）
-    const outMsg = { type: 'private_message', id, from: userId, fromName: username, to, content: msgContent, images: msgImages, timestamp };
+    const outMsg = { type: 'private_message', id, from: userId, fromName: senderName, to, content: msgContent, images: msgImages, timestamp };
     if (to) wsSend(to, outMsg);
     wsSend(userId, outMsg);
   }
