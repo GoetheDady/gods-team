@@ -13,13 +13,18 @@ interface Props {
 
 export default function MessageInput({ onSend, onTyping, disabled, placeholder }: Props) {
   const [text, setText] = useState('');
+  // pendingImageUrl: OSS 上传完成后的图片 URL，随消息发送
+  // preview: 本地 blob URL，仅用于上传期间显示预览
   const [pendingImageUrl, setPendingImageUrl] = useState<string | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  // 中文输入法组合状态标记
+  // 在组合输入期间（拼音输入中）不响应 Enter 键，避免误发消息
   const composing = useRef(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // 文本框自动增高，根据内容调整高度
   function autoResize() {
     const el = textareaRef.current;
     if (!el) return;
@@ -33,6 +38,7 @@ export default function MessageInput({ onSend, onTyping, disabled, placeholder }
     onTyping();
   }
 
+  // Enter 发送，Shift+Enter 换行，中文输入法组合中不触发
   function handleKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === 'Enter' && !e.shiftKey && !composing.current) {
       e.preventDefault();
@@ -40,6 +46,7 @@ export default function MessageInput({ onSend, onTyping, disabled, placeholder }
     }
   }
 
+  // 剪贴板粘贴图片：检测到图片类型直接触发上传
   function handlePaste(e: ClipboardEvent<HTMLTextAreaElement>) {
     for (const item of e.clipboardData.items) {
       if (item.type.startsWith('image/')) {
@@ -54,9 +61,15 @@ export default function MessageInput({ onSend, onTyping, disabled, placeholder }
   function handleFileSelect(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (file) uploadImage(file);
+    // 重置 input value，确保选择同一文件也能触发 onChange
     if (fileInputRef.current) fileInputRef.current.value = '';
   }
 
+  // OSS 直传流程：
+  // 1. 先显示本地 blob 预览（用户立即看到图片）
+  // 2. 调 /api/oss/sign 获取服务端签名
+  // 3. 用签名直接 POST 到 OSS（不经过我们的服务器，省带宽）
+  // 4. 上传成功后记录 OSS URL，发送消息时附上
   async function uploadImage(file: File) {
     if (preview) URL.revokeObjectURL(preview);
     setPreview(URL.createObjectURL(file));
@@ -69,6 +82,7 @@ export default function MessageInput({ onSend, onTyping, disabled, placeholder }
       form.append('file', file);
       const ossRes = await fetch(url, { method: 'POST', body: form });
       if (!ossRes.ok) throw new Error('OSS 上传失败');
+      // 拼接完整的 OSS 图片 URL
       setPendingImageUrl(`${url}/${fields.key}`);
     } catch (err) {
       alert(err instanceof Error ? err.message : '上传失败');
