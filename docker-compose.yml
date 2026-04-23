@@ -1,0 +1,15 @@
+services:
+  gods-team:
+    build: .
+    container_name: gods-team
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - gods-team-data:/app/data
+    environment:
+      - NODE_ENV=production
+      - JWT_SECRET=${JWT_SECRET:-change-me-in-prod}
+
+volumes:
+  gods-team-data:

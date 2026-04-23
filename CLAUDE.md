@@ -82,8 +82,17 @@ cd client && npm run dev
 # 后端单测
 cd server && npm test
 
+# 运行单个后端测试文件
+cd server && npx vitest run tests/auth.test.ts
+
 # 前端浏览器测试（Vitest + Playwright Chromium）
 cd client && npm run test:browser
+
+# 运行单个前端测试文件
+cd client && npx vitest --config vitest.config.browser.ts run tests/crypto.test.ts
+
+# 前端 lint
+cd client && npm run lint
 
 # 构建
 cd client && npm run build
@@ -92,14 +101,32 @@ cd server && npm run build
 
 首次启动使用管理员邀请码 `ADMIN0001` 注册第一个账号。
 
+### 环境变量
+
+| 变量 | 默认值 | 说明 |
+|---|---|---|
+| `JWT_SECRET` | `dev-secret-change-in-prod` | JWT 签名密钥，生产环境必须修改 |
+| `PORT` | `3000` | 服务端端口 |
+| `CORS_ORIGIN` | `http://localhost:5173` | 开发环境 CORS 允许的来源 |
+| `NODE_ENV` | — | 设为 `production` 时 serve 静态文件 + 禁用 CORS |
+
+### Docker 部署
+
+```bash
+docker compose up -d
+```
+
+生产模式：客户端构建产物由 Express 直接 serve（无独立前端服务）。数据持久化到 Docker volume `gods-team-data`。
+
 ### 架构概览
 
 **后端** (`server/src/`)
 - `index.ts` — Express 入口，挂载路由，升级 WebSocket
-- `db.ts` — `better-sqlite3` 单例，同步 API，表：`users`、`invite_codes`、`pubkeys`
+- `db.ts` — `better-sqlite3` 单例，同步 API，数据库文件 `data/chatroom.db`，表：`users`、`invite_codes`、`pubkeys`
 - `auth.ts` — 注册（邀请码验证 + bcrypt）、登录、JWT 签发
 - `invite.ts` — 邀请码 CRUD（管理员权限由 JWT payload 中 `isAdmin` 标志控制）
 - `pubkey.ts` — 公钥上传/查询（每个用户一条记录，upsert）
+- `middleware/auth.ts` — `requireAuth` 中间件，从 HttpOnly cookie 或 Authorization header 提取 JWT
 - `ws.ts` — WebSocket 中继：JWT 鉴权后加入房间，纯转发密文，不解析消息内容
 
 **前端** (`client/src/`)
@@ -108,7 +135,8 @@ cd server && npm run build
 - `services/localDb.ts` — IndexedDB 封装，存储明文消息（解密后），索引 `[chat_id, timestamp]`
 - `services/api.ts` — fetch 封装，REST API 调用
 - `pages/Chat.tsx` — 核心页面，管理 E2EE 状态机、WebSocket 消息处理、大厅/私聊逻辑
-- `pages/Settings.tsx` — 邀请码管理
+- `pages/Settings.tsx` — 邀请码管理（管理员）
+- `styles/tokens.css` + `styles/global.css` — CSS 变量与全局样式
 - `App.tsx` — 路由守卫，`/me` 接口验证登录态
 
 ### E2EE 协议关键点
@@ -136,3 +164,5 @@ pubkeys(user_id TEXT PK, key_data TEXT, updated_at INTEGER)
 - `import type` 必须用于仅类型导入（TypeScript isolatedModules 要求）
 - vite dev server 已配置 COOP/COEP 响应头（原为 SQLite WASM SharedArrayBuffer 所需，现已无实际用途但保留无害）
 - 前端通过 `/api` proxy 访问后端，WebSocket 通过 `/ws` proxy
+- 后端测试位于 `server/tests/`（auth、invite、pubkey），前端测试位于 `client/tests/`（crypto、localDb）
+- 样式使用 CSS Modules（`.module.css`），组件和样式文件同名并列存放

@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react';
 import type { KeyboardEvent, ChangeEvent, ClipboardEvent } from 'react';
+import { Paperclip, X } from 'lucide-react';
 import styles from './MessageInput.module.css';
 
 interface Props {
@@ -82,7 +83,7 @@ export default function MessageInput({ onSend, onTyping, disabled, placeholder }
       {preview && (
         <div className={styles.preview}>
           <img src={preview} alt="preview" className={styles.previewImg} />
-          <button className={styles.removeBtn} onClick={removeImage}>×</button>
+          <button className={styles.removeBtn} onClick={removeImage}><X size={10} strokeWidth={3} /></button>
         </div>
       )}
       <div className={styles.row}>
@@ -99,7 +100,7 @@ export default function MessageInput({ onSend, onTyping, disabled, placeholder }
           disabled={disabled}
           title="发送图片"
         >
-          +
+          <Paperclip size={16} />
         </button>
         <textarea
           ref={textareaRef}
