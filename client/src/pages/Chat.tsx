@@ -199,7 +199,7 @@ export default function Chat({ userId, username, nickname, avatarUrl, onLogout }
           <span className={styles.roomName}># 公共大厅</span>
         </div>
         <div className={styles.headerRight}>
-          <span className={styles.username}>{username}</span>
+          <span className={styles.username}>{nickname ?? username}</span>
           <button className={styles.inviteBtn} onClick={() => navigate('/settings')}>邀请码</button>
           <button className={styles.logoutBtn} onClick={handleLogout}>退出</button>
         </div>

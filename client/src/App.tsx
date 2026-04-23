@@ -34,7 +34,9 @@ export default function App() {
   if (auth === undefined) return null;
 
   function handleLogin(userId: string, username: string) {
-    setAuth({ userId, username, nickname: null, avatar_url: null });
+    api.me()
+      .then(user => setAuth(user))
+      .catch(() => setAuth({ userId, username, nickname: null, avatar_url: null }));
   }
 
   return (
