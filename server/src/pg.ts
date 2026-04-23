@@ -21,6 +21,8 @@ export async function initDb() {
       created_at  BIGINT NOT NULL
     )
   `;
+  await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS nickname TEXT DEFAULT NULL`;
+  await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT DEFAULT NULL`;
   await sql`
     CREATE TABLE IF NOT EXISTS invite_codes (
       code        TEXT PRIMARY KEY,
