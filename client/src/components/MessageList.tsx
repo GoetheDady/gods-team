@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import Avatar from './Avatar';
 import styles from './MessageList.module.css';
 
 export interface ImageMeta {
@@ -46,29 +47,44 @@ export default function MessageList({ messages, currentUserId, typingUsernames, 
       {hasMore && (
         <div className={styles.loadMore} onClick={onLoadMore}>加载更多</div>
       )}
-      {messages.map(msg => (
-        <div
-          key={msg.id}
-          className={`${styles.message} ${msg.from_id === currentUserId ? styles.self : styles.other}`}
-        >
-          <div className={styles.meta}>
-            <span className={styles.sender}>{msg.from_username}</span>
-            <span className={styles.time}>{formatTime(msg.timestamp)}</span>
+      {messages.map(msg => {
+        const isSelf = msg.from_id === currentUserId;
+        return (
+          <div
+            key={msg.id}
+            className={`${styles.message} ${isSelf ? styles.self : styles.other}`}
+          >
+            {!isSelf && (
+              <div className={styles.avatar}>
+                <Avatar src={null} name={msg.from_username} size={34} />
+              </div>
+            )}
+            <div className={styles.body}>
+              <div className={styles.meta}>
+                {!isSelf && <span className={styles.sender}>{msg.from_username}</span>}
+                <span className={styles.time}>{formatTime(msg.timestamp)}</span>
+              </div>
+              <div className={styles.bubble}>
+                {msg.content && <p className={styles.text}>{msg.content}</p>}
+                {msg.images?.map((img, i) => (
+                  <img
+                    key={i}
+                    src={`${img.url}?x-oss-process=image/resize,w_300`}
+                    alt=""
+                    className={styles.image}
+                    onClick={() => setLightbox(`${img.url}?x-oss-process=image/resize,w_1200`)}
+                  />
+                ))}
+              </div>
+            </div>
+            {isSelf && (
+              <div className={styles.avatar}>
+                <Avatar src={null} name={msg.from_username} size={34} />
+              </div>
+            )}
           </div>
-          <div className={styles.bubble}>
-            {msg.content && <p className={styles.text}>{msg.content}</p>}
-            {msg.images?.map((img, i) => (
-              <img
-                key={i}
-                src={`${img.url}?x-oss-process=image/resize,w_300`}
-                alt=""
-                className={styles.image}
-                onClick={() => setLightbox(`${img.url}?x-oss-process=image/resize,w_1200`)}
-              />
-            ))}
-          </div>
-        </div>
-      ))}
+        );
+      })}
       <div
         className={styles.typing}
         style={{ visibility: typingUsernames.length > 0 ? 'visible' : 'hidden' }}
