@@ -1,4 +1,5 @@
-import { useState, KeyboardEvent, ChangeEvent, useRef } from 'react';
+import { useState, useRef } from 'react';
+import type { KeyboardEvent, ChangeEvent } from 'react';
 import styles from './MessageInput.module.css';
 
 interface Props {
@@ -11,6 +12,7 @@ interface Props {
 export default function MessageInput({ onSend, onTyping, disabled, placeholder }: Props) {
   const [text, setText] = useState('');
   const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const composing = useRef(false);
 
   function handleChange(e: ChangeEvent<HTMLTextAreaElement>) {
     setText(e.target.value);
@@ -19,7 +21,7 @@ export default function MessageInput({ onSend, onTyping, disabled, placeholder }
   }
 
   function handleKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === 'Enter' && !e.shiftKey && !composing.current) {
       e.preventDefault();
       submit();
     }
@@ -39,6 +41,8 @@ export default function MessageInput({ onSend, onTyping, disabled, placeholder }
         value={text}
         onChange={handleChange}
         onKeyDown={handleKeyDown}
+        onCompositionStart={() => { composing.current = true; }}
+        onCompositionEnd={() => { composing.current = false; }}
         placeholder={placeholder || '输入消息，Enter 发送，Shift+Enter 换行'}
         disabled={disabled}
         rows={1}
