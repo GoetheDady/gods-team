@@ -1,37 +1,17 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
+import type { ServerMessage } from '../services/api';
 import { wsClient } from '../services/ws';
 import type { WsMessage } from '../services/ws';
-import { saveMessage, getMessages } from '../services/localDb';
-import type { LocalMessage } from '../services/localDb';
-import {
-  getOrCreateKeyPair,
-  exportPublicKey,
-  importPublicKey,
-  deriveSharedKey,
-  generateAesKey,
-  encrypt,
-  decrypt,
-  encryptBinary,
-  decryptBinary,
-  wrapAesKey,
-  unwrapAesKey,
-} from '../services/crypto';
-import type { EncryptedPayload } from '../services/crypto';
-import { compressImage } from '../services/imageUtils';
-import type { ImageMeta } from '../components/MessageList';
+import type { Message } from '../components/MessageList';
 import UserList from '../components/UserList';
 import MessageList from '../components/MessageList';
-import type { Message } from '../components/MessageList';
 import MessageInput from '../components/MessageInput';
 import PrivatePanel from '../components/PrivatePanel';
 import styles from './Chat.module.css';
 
-interface OnlineUser {
-  id: string;
-  username: string;
-}
+interface OnlineUser { id: string; username: string; }
 
 interface Props {
   userId: string;
@@ -39,270 +19,135 @@ interface Props {
   onLogout: () => void;
 }
 
+function toMessage(m: ServerMessage): Message {
+  return {
+    id: m.id,
+    from_id: m.senderId,
+    from_username: m.senderName,
+    content: m.content,
+    images: m.images ?? undefined,
+    timestamp: m.createdAt,
+  };
+}
+
 export default function Chat({ userId, username, onLogout }: Props) {
   const navigate = useNavigate();
   const [onlineUsers, setOnlineUsers] = useState<OnlineUser[]>([]);
   const [hallMessages, setHallMessages] = useState<Message[]>([]);
   const [hallTyping, setHallTyping] = useState<string[]>([]);
+  const [hallHasMore, setHallHasMore] = useState(false);
   const [privateMessages, setPrivateMessages] = useState<Message[]>([]);
-  const [privateTyping] = useState<string[]>([]);
+  const [privateTyping, setPrivateTyping] = useState<string[]>([]);
+  const [privateHasMore, setPrivateHasMore] = useState(false);
   const [activePeerId, setActivePeerId] = useState<string | null>(null);
   const [activePeerUsername, setActivePeerUsername] = useState('');
-  const [hallKeyReady, setHallKeyReady] = useState(false);
 
-  const myKeyPair = useRef<CryptoKeyPair | null>(null);
-  const hallKey = useRef<CryptoKey | null>(null);
-  const sessionKeys = useRef<Map<string, CryptoKey>>(new Map());
   const usernameMap = useRef<Map<string, string>>(new Map([[userId, username]]));
   const activePeerIdRef = useRef<string | null>(null);
-  const [hallImageUrls, setHallImageUrls] = useState<Map<string, string[]>>(new Map());
-  const [privateImageUrls, setPrivateImageUrls] = useState<Map<string, string[]>>(new Map());
-
-  const getSessionKey = useCallback(async (peerId: string): Promise<CryptoKey | null> => {
-    if (sessionKeys.current.has(peerId)) return sessionKeys.current.get(peerId)!;
-    if (!myKeyPair.current) return null;
-    try {
-      const { key_data } = await api.getPubkey(peerId);
-      const peerPubKey = await importPublicKey(key_data);
-      const sharedKey = await deriveSharedKey(myKeyPair.current.privateKey, peerPubKey);
-      sessionKeys.current.set(peerId, sharedKey);
-      return sharedKey;
-    } catch {
-      return null;
-    }
-  }, []);
+  const hallTypingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const privateTypingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    // Register handler synchronously — cleanup() runs before init() resolves in StrictMode,
-    // so the unsubscribe ref must be captured before any await.
-    const unsub = wsClient.on(async (msg: WsMessage) => {
+    const unsub = wsClient.on((msg: WsMessage) => {
       if (msg.type === 'online_users' && msg.users) {
         const users = msg.users as OnlineUser[];
         users.forEach(u => usernameMap.current.set(u.id, u.username));
         setOnlineUsers(users);
-
-        const authorityId = [...users.map(u => u.id)].sort()[0];
-        const iAmAuthority = authorityId === userId;
-
-        if (iAmAuthority && !hallKey.current) {
-          const key = await generateAesKey();
-          hallKey.current = key;
-          setHallKeyReady(true);
-          for (const user of users.filter(u => u.id !== userId)) {
-            const sessionKey = await getSessionKey(user.id);
-            if (!sessionKey) continue;
-            const wrapped = await wrapAesKey(key, sessionKey);
-            wsClient.send({ type: 'hall_key_distribution', payload: { to: user.id, wrapped } });
-          }
-        }
       } else if (msg.type === 'user_joined') {
-        const u = { id: msg.userId!, username: msg.username! };
-        usernameMap.current.set(u.id, u.username);
-        setOnlineUsers(prev => [...prev.filter(x => x.id !== u.id), u]);
-        // Invalidate cached session key — the rejoining user may have a new key pair
-        sessionKeys.current.delete(u.id);
-
-        const knownIds = [...usernameMap.current.keys(), u.id];
-        const authorityId = knownIds.sort()[0];
-        if (authorityId === userId && hallKey.current) {
-          const distribute = async (retries = 5): Promise<void> => {
-            const sessionKey = await getSessionKey(u.id);
-            if (sessionKey) {
-              if (!hallKey.current) return;
-              const wrapped = await wrapAesKey(hallKey.current, sessionKey);
-              wsClient.send({ type: 'hall_key_distribution', payload: { to: u.id, wrapped } });
-            } else if (retries > 0) {
-              await new Promise(r => setTimeout(r, 500));
-              sessionKeys.current.delete(u.id);
-              await distribute(retries - 1);
-            }
-          };
-          distribute().catch(() => {});
-        }
+        usernameMap.current.set(msg.userId!, msg.username!);
+        setOnlineUsers(prev => {
+          if (prev.some(u => u.id === msg.userId)) return prev;
+          return [...prev, { id: msg.userId!, username: msg.username! }];
+        });
       } else if (msg.type === 'user_left') {
         setOnlineUsers(prev => prev.filter(u => u.id !== msg.userId));
-      } else if (msg.type === 'hall_key_distribution') {
-        if (!myKeyPair.current || !msg.from) return;
-        const senderIsMoreAuthoritative = msg.from < userId;
-        if (hallKey.current && !senderIsMoreAuthoritative) return;
-        const sessionKey = await getSessionKey(msg.from);
-        if (!sessionKey) return;
-        const wrapped = msg.payload?.wrapped as EncryptedPayload;
-        try {
-          hallKey.current = await unwrapAesKey(wrapped, sessionKey);
-          setHallKeyReady(true);
-        } catch (e) {
-          console.error('[hall] unwrapAesKey failed:', String(e));
-        }
       } else if (msg.type === 'hall_message') {
-        if (!hallKey.current || !msg.from || !msg.payload) return;
-        const payload = msg.payload as unknown as EncryptedPayload;
-        let decrypted: string;
-        try {
-          decrypted = await decrypt(payload, hallKey.current);
-        } catch (e) {
-          console.error('[hall] decrypt failed:', String(e));
-          return;
-        }
-        let parsed: { content: string; images?: ImageMeta[] };
-        try {
-          parsed = JSON.parse(decrypted);
-        } catch {
-          parsed = { content: decrypted };
-        }
-        const fromUsername = usernameMap.current.get(msg.from) || msg.from;
-        const newMsg: Message = {
-          id: `${msg.from}-${msg.timestamp}`,
-          from_id: msg.from,
-          from_username: fromUsername,
-          content: parsed.content || '',
-          images: parsed.images,
-          timestamp: msg.timestamp!,
-        };
-        setHallMessages(prev => [...prev, newMsg]);
-        await saveMessage({ ...newMsg, chat_id: 'hall' } as LocalMessage);
+        const m = msg as any;
+        setHallMessages(prev => [...prev, {
+          id: m.id, from_id: m.from, from_username: m.fromName,
+          content: m.content ?? '', images: m.images ?? undefined, timestamp: m.timestamp,
+        }]);
       } else if (msg.type === 'private_message') {
-        if (!msg.from || !msg.payload) return;
-        const peerId = msg.from === userId ? activePeerIdRef.current || msg.from : msg.from;
-        const sessionKey = await getSessionKey(peerId);
-        if (!sessionKey) return;
-        const payload = msg.payload as unknown as EncryptedPayload;
-        const decrypted = await decrypt(payload, sessionKey);
-        let parsed: { content: string; images?: ImageMeta[] };
-        try {
-          parsed = JSON.parse(decrypted);
-        } catch {
-          parsed = { content: decrypted };
+        const m = msg as any;
+        const peer = m.from === userId ? m.to : m.from;
+        if (peer === activePeerIdRef.current) {
+          setPrivateMessages(prev => [...prev, {
+            id: m.id, from_id: m.from,
+            from_username: usernameMap.current.get(m.from) || m.from,
+            content: m.content ?? '', images: m.images ?? undefined, timestamp: m.timestamp,
+          }]);
         }
-        const fromUsername = usernameMap.current.get(msg.from) || msg.from;
-        const newMsg: Message = {
-          id: `${msg.from}-${msg.timestamp}`,
-          from_id: msg.from,
-          from_username: fromUsername,
-          content: parsed.content || '',
-          images: parsed.images,
-          timestamp: msg.timestamp!,
-        };
-        const chatId = [userId, peerId].sort().join('-');
-        setPrivateMessages(prev => [...prev, newMsg]);
-        await saveMessage({ ...newMsg, chat_id: chatId } as LocalMessage);
       } else if (msg.type === 'typing') {
-        const fromUsername = usernameMap.current.get(msg.from || '') || msg.from || '';
-        setHallTyping(prev => [...new Set([...prev, fromUsername])]);
-        setTimeout(() => setHallTyping(prev => prev.filter(n => n !== fromUsername)), 3000);
+        const m = msg as any;
+        const name = usernameMap.current.get(m.from) || m.from;
+        if (m.to) {
+          setPrivateTyping([name]);
+          if (privateTypingTimer.current) clearTimeout(privateTypingTimer.current);
+          privateTypingTimer.current = setTimeout(() => setPrivateTyping([]), 2000);
+        } else {
+          setHallTyping([name]);
+          if (hallTypingTimer.current) clearTimeout(hallTypingTimer.current);
+          hallTypingTimer.current = setTimeout(() => setHallTyping([]), 2000);
+        }
       }
     });
 
     async function init() {
-      const keyPair = await getOrCreateKeyPair();
-      myKeyPair.current = keyPair;
-      const pubKeyB64 = await exportPublicKey(keyPair.publicKey);
-      await api.uploadPubkey(pubKeyB64);
-
       const { token } = await api.getToken();
       wsClient.connect(token);
-
-      const history = await getMessages('hall', 200);
-      setHallMessages(history.map(m => ({
-        id: m.id,
-        from_id: m.from_id,
-        from_username: m.from_username || usernameMap.current.get(m.from_id) || m.from_id,
-        content: m.content,
-        images: m.images,
-        timestamp: m.timestamp,
-      })));
+      const { messages, hasMore } = await api.getMessages('hall');
+      setHallHasMore(hasMore);
+      setHallMessages(messages.map(toMessage));
     }
 
     init().catch(console.error);
+
     return () => {
       unsub();
       wsClient.disconnect();
-      hallKey.current = null;
-      sessionKeys.current.clear();
-      setHallKeyReady(false);
       setOnlineUsers([]);
       setHallMessages([]);
     };
-  }, [userId, getSessionKey]);
+  }, [userId]);
 
-  async function sendHallMessage(text: string, file?: File) {
-    if (!hallKey.current) return;
-    let images: ImageMeta[] | undefined;
-    if (file) {
-      try {
-        const { blob, width, height } = await compressImage(file);
-        const encrypted = await encryptBinary(await blob.arrayBuffer(), hallKey.current);
-        const { url } = await api.uploadFile(JSON.stringify(encrypted));
-        images = [{ url, width, height }];
-      } catch (err) {
-        alert(err instanceof Error ? err.message : '上传失败');
-        return;
-      }
-    }
-    const payload = await encrypt(JSON.stringify({ content: text, images }), hallKey.current);
-    wsClient.send({ type: 'hall_message', payload });
+  async function loadMoreHall() {
+    if (!hallHasMore || hallMessages.length === 0) return;
+    const before = hallMessages[0].timestamp;
+    const { messages, hasMore } = await api.getMessages('hall', before);
+    setHallHasMore(hasMore);
+    setHallMessages(prev => [...messages.map(toMessage), ...prev]);
   }
 
-  async function sendPrivateMessage(text: string, file?: File) {
+  async function loadMorePrivate() {
+    if (!privateHasMore || privateMessages.length === 0 || !activePeerIdRef.current) return;
+    const chatId = [userId, activePeerIdRef.current].sort().join(':');
+    const before = privateMessages[0].timestamp;
+    const { messages, hasMore } = await api.getMessages(chatId, before);
+    setPrivateHasMore(hasMore);
+    setPrivateMessages(prev => [...messages.map(toMessage), ...prev]);
+  }
+
+  function sendHallMessage(text: string, imageUrl?: string) {
+    wsClient.send({
+      type: 'hall_message',
+      content: text,
+      images: imageUrl ? [{ url: imageUrl }] : undefined,
+    });
+  }
+
+  function sendPrivateMessage(text: string, imageUrl?: string) {
     if (!activePeerId) return;
-    const sessionKey = await getSessionKey(activePeerId);
-    if (!sessionKey) return;
-    let images: ImageMeta[] | undefined;
-    if (file) {
-      try {
-        const { blob, width, height } = await compressImage(file);
-        const encrypted = await encryptBinary(await blob.arrayBuffer(), sessionKey);
-        const { url } = await api.uploadFile(JSON.stringify(encrypted));
-        images = [{ url, width, height }];
-      } catch (err) {
-        alert(err instanceof Error ? err.message : '上传失败');
-        return;
-      }
-    }
-    const payload = await encrypt(JSON.stringify({ content: text, images }), sessionKey);
-    wsClient.send({ type: 'private_message', payload: { to: activePeerId, ...payload } });
+    wsClient.send({
+      type: 'private_message',
+      to: activePeerId,
+      content: text,
+      images: imageUrl ? [{ url: imageUrl }] : undefined,
+    });
   }
 
-  async function loadHallImage(msgId: string, meta: ImageMeta) {
-    if (!hallKey.current) return;
-    try {
-      const res = await fetch(meta.url);
-      if (!res.ok) throw new Error();
-      const encrypted = JSON.parse(await res.text());
-      const decrypted = await decryptBinary(encrypted, hallKey.current);
-      const blobUrl = URL.createObjectURL(new Blob([decrypted], { type: 'image/jpeg' }));
-      setHallImageUrls(prev => {
-        const next = new Map(prev);
-        next.set(msgId, [...(next.get(msgId) || []), blobUrl]);
-        return next;
-      });
-    } catch {}
-  }
-
-  async function loadPrivateImage(msgId: string, meta: ImageMeta) {
-    if (!activePeerId) return;
-    const sessionKey = await getSessionKey(activePeerId);
-    if (!sessionKey) return;
-    try {
-      const res = await fetch(meta.url);
-      if (!res.ok) throw new Error();
-      const encrypted = JSON.parse(await res.text());
-      const decrypted = await decryptBinary(encrypted, sessionKey);
-      const blobUrl = URL.createObjectURL(new Blob([decrypted], { type: 'image/jpeg' }));
-      setPrivateImageUrls(prev => {
-        const next = new Map(prev);
-        next.set(msgId, [...(next.get(msgId) || []), blobUrl]);
-        return next;
-      });
-    } catch {}
-  }
-
-  function sendTyping() {
-    wsClient.send({ type: 'typing', payload: {} });
-  }
-
+  function sendTyping() { wsClient.send({ type: 'typing' }); }
   function sendPrivateTyping() {
-    if (activePeerId) wsClient.send({ type: 'typing', payload: { to: activePeerId } });
+    if (activePeerId) wsClient.send({ type: 'typing', to: activePeerId });
   }
 
   async function selectUser(peerId: string) {
@@ -311,16 +156,10 @@ export default function Chat({ userId, username, onLogout }: Props) {
     activePeerIdRef.current = peerId;
     setActivePeerId(peerId);
     setActivePeerUsername(peerName);
-    const chatId = [userId, peerId].sort().join('-');
-    const history = await getMessages(chatId, 200);
-    setPrivateMessages(history.map(m => ({
-      id: m.id,
-      from_id: m.from_id,
-      from_username: m.from_username || usernameMap.current.get(m.from_id) || m.from_id,
-      content: m.content,
-      images: m.images,
-      timestamp: m.timestamp,
-    })));
+    const chatId = [userId, peerId].sort().join(':');
+    const { messages, hasMore } = await api.getMessages(chatId);
+    setPrivateHasMore(hasMore);
+    setPrivateMessages(messages.map(toMessage));
   }
 
   async function handleLogout() {
@@ -331,21 +170,13 @@ export default function Chat({ userId, username, onLogout }: Props) {
 
   return (
     <div className={styles.layout}>
-      {!hallKeyReady && (
-        <div className={styles.loading}>
-          <div className={styles.loadingInner}>
-            <div className={styles.spinner} />
-            <span>正在建立加密连接…</span>
-          </div>
-        </div>
-      )}
       <header className={styles.header}>
         <div className={styles.headerLeft}>
           <span className={styles.logo}>江湖</span>
           <span className={styles.roomName}># 公共大厅</span>
         </div>
         <div className={styles.headerRight}>
-          <span className={styles.username}><span>{username}</span></span>
+          <span className={styles.username}>{username}</span>
           <button className={styles.inviteBtn} onClick={() => navigate('/settings')}>邀请码</button>
           <button className={styles.logoutBtn} onClick={handleLogout}>退出</button>
         </div>
@@ -365,14 +196,13 @@ export default function Chat({ userId, username, onLogout }: Props) {
           messages={hallMessages}
           currentUserId={userId}
           typingUsernames={hallTyping}
-          imageUrls={hallImageUrls}
-          onLoadImage={loadHallImage}
+          hasMore={hallHasMore}
+          onLoadMore={loadMoreHall}
         />
         <MessageInput
           onSend={sendHallMessage}
           onTyping={sendTyping}
-          disabled={!hallKeyReady}
-          placeholder={hallKeyReady ? '发言于大厅...' : '正在建立加密连接...'}
+          placeholder="发言于大厅..."
         />
       </main>
 
@@ -386,8 +216,8 @@ export default function Chat({ userId, username, onLogout }: Props) {
           onSend={sendPrivateMessage}
           onTyping={sendPrivateTyping}
           onClose={() => { activePeerIdRef.current = null; setActivePeerId(null); }}
-          imageUrls={privateImageUrls}
-          onLoadImage={loadPrivateImage}
+          hasMore={privateHasMore}
+          onLoadMore={loadMorePrivate}
         />
       </aside>
     </div>
