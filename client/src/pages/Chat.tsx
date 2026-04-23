@@ -41,7 +41,7 @@ export default function Chat({ userId, username, onLogout }: Props) {
   const [hallMessages, setHallMessages] = useState<Message[]>([]);
   const [hallTyping, setHallTyping] = useState<string[]>([]);
   const [privateMessages, setPrivateMessages] = useState<Message[]>([]);
-  const [privateTyping, setPrivateTyping] = useState<string[]>([]);
+  const [privateTyping] = useState<string[]>([]);
   const [activePeerId, setActivePeerId] = useState<string | null>(null);
   const [activePeerUsername, setActivePeerUsername] = useState('');
   const [hallKeyReady, setHallKeyReady] = useState(false);
@@ -186,7 +186,7 @@ export default function Chat({ userId, username, onLogout }: Props) {
       setHallMessages(history.map(m => ({
         id: m.id,
         from_id: m.from_id,
-        from_username: usernameMap.current.get(m.from_id) || m.from_id,
+        from_username: m.from_username || usernameMap.current.get(m.from_id) || m.from_id,
         content: m.content,
         timestamp: m.timestamp,
       })));
@@ -237,7 +237,7 @@ export default function Chat({ userId, username, onLogout }: Props) {
     setPrivateMessages(history.map(m => ({
       id: m.id,
       from_id: m.from_id,
-      from_username: usernameMap.current.get(m.from_id) || m.from_id,
+      from_username: m.from_username || usernameMap.current.get(m.from_id) || m.from_id,
       content: m.content,
       timestamp: m.timestamp,
     })));

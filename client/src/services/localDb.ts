@@ -2,6 +2,7 @@ export interface LocalMessage {
   id: string;
   chat_id: string;
   from_id: string;
+  from_username: string;
   content: string;
   timestamp: number;
 }
