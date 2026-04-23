@@ -1,4 +1,5 @@
-import { useState, FormEvent } from 'react';
+import { useState } from 'react';
+import type { FormEvent } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { api } from '../services/api';
 import styles from './Register.module.css';
@@ -43,8 +44,8 @@ export default function Register({ onLogin }: Props) {
               className={styles.input}
               value={inviteCode}
               onChange={e => setInviteCode(e.target.value)}
-              placeholder="8位邀请码"
-              maxLength={8}
+              placeholder="邀请码"
+              maxLength={16}
               style={{ fontFamily: 'var(--font-mono)', letterSpacing: '0.15em' }}
               required
             />
