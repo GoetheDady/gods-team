@@ -9,6 +9,8 @@ import {
   importAesKey,
   encrypt,
   decrypt,
+  encryptBinary,
+  decryptBinary,
   wrapAesKey,
   unwrapAesKey,
 } from '../src/services/crypto';
@@ -174,5 +176,15 @@ describe('generateAesKey / exportAesKey / importAesKey', () => {
     const payload = await encrypt('test', key);
     const result = await decrypt(payload, imported);
     expect(result).toBe('test');
+  });
+});
+
+describe('encryptBinary / decryptBinary', () => {
+  it('encrypts and decrypts binary data', async () => {
+    const key = await generateAesKey();
+    const original = new Uint8Array([0, 1, 2, 3, 4, 5, 6, 7]);
+    const encrypted = await encryptBinary(original.buffer as ArrayBuffer, key);
+    const decrypted = await decryptBinary(encrypted, key);
+    expect(new Uint8Array(decrypted)).toEqual(original);
   });
 });

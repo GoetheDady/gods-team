@@ -120,3 +120,18 @@ export async function unwrapAesKey(
   const keyBase64 = await decrypt(payload, wrappingKey);
   return importAesKey(keyBase64);
 }
+
+export async function encryptBinary(data: ArrayBuffer, key: CryptoKey): Promise<EncryptedPayload> {
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const cipherbuf = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, data);
+  return {
+    ciphertext: btoa(String.fromCharCode(...new Uint8Array(cipherbuf))),
+    iv: btoa(String.fromCharCode(...new Uint8Array(iv))),
+  };
+}
+
+export async function decryptBinary(payload: EncryptedPayload, key: CryptoKey): Promise<ArrayBuffer> {
+  const cipherbuf = Uint8Array.from(atob(payload.ciphertext), c => c.charCodeAt(0));
+  const iv = Uint8Array.from(atob(payload.iv), c => c.charCodeAt(0));
+  return crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, cipherbuf);
+}

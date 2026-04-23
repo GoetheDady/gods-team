@@ -68,4 +68,16 @@ export const api = {
       }>;
     }>('/invite/mine');
   },
+
+  uploadFile(encryptedPayload: string): Promise<{ url: string }> {
+    return fetch(BASE + '/upload', {
+      method: 'POST',
+      credentials: 'include',
+      body: encryptedPayload,
+    }).then(async res => {
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Upload failed');
+      return data as { url: string };
+    });
+  },
 };
