@@ -54,11 +54,9 @@ export default function MessageList({ messages, currentUserId, typingUsernames, 
             key={msg.id}
             className={`${styles.message} ${isSelf ? styles.self : styles.other}`}
           >
-            {!isSelf && (
-              <div className={styles.avatar}>
-                <Avatar src={null} name={msg.from_username} size={34} />
-              </div>
-            )}
+            <div className={styles.avatar}>
+              <Avatar src={null} name={msg.from_username} size={34} />
+            </div>
             <div className={styles.body}>
               <div className={styles.meta}>
                 {!isSelf && <span className={styles.sender}>{msg.from_username}</span>}
@@ -77,11 +75,6 @@ export default function MessageList({ messages, currentUserId, typingUsernames, 
                 ))}
               </div>
             </div>
-            {isSelf && (
-              <div className={styles.avatar}>
-                <Avatar src={null} name={msg.from_username} size={34} />
-              </div>
-            )}
           </div>
         );
       })}
