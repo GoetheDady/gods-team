@@ -88,13 +88,19 @@ export interface EncryptedPayload {
   iv: string;
 }
 
+function u8ToBase64(buf: Uint8Array): string {
+  let s = '';
+  for (let i = 0; i < buf.length; i++) s += String.fromCharCode(buf[i]);
+  return btoa(s);
+}
+
 export async function encrypt(plaintext: string, key: CryptoKey): Promise<EncryptedPayload> {
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const encoded = new TextEncoder().encode(plaintext);
   const cipherbuf = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, encoded);
   return {
-    ciphertext: btoa(String.fromCharCode(...new Uint8Array(cipherbuf))),
-    iv: btoa(String.fromCharCode(...iv)),
+    ciphertext: u8ToBase64(new Uint8Array(cipherbuf)),
+    iv: u8ToBase64(iv),
   };
 }
 
@@ -125,8 +131,8 @@ export async function encryptBinary(data: ArrayBuffer, key: CryptoKey): Promise<
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const cipherbuf = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, data);
   return {
-    ciphertext: btoa(String.fromCharCode(...new Uint8Array(cipherbuf))),
-    iv: btoa(String.fromCharCode(...new Uint8Array(iv))),
+    ciphertext: u8ToBase64(new Uint8Array(cipherbuf)),
+    iv: u8ToBase64(new Uint8Array(iv)),
   };
 }
 
