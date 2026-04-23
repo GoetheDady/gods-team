@@ -57,48 +57,52 @@ export function setupWebSocket(server: Server) {
     broadcast({ type: 'user_joined', userId, username }, userId);
 
     ws.on('message', async (raw) => {
-      let msg: { type: string; content?: string; images?: { url: string }[]; to?: string };
-      try { msg = JSON.parse(raw.toString()); } catch { return; }
+      try {
+        let msg: { type: string; content?: string; images?: { url: string }[]; to?: string };
+        try { msg = JSON.parse(raw.toString()); } catch { return; }
 
-      if (msg.type === 'hall_message') {
-        const id = randomUUID();
-        const timestamp = Date.now();
-        const content = msg.content ?? null;
-        const images = msg.images ?? null;
+        if (msg.type === 'hall_message') {
+          const id = randomUUID();
+          const timestamp = Date.now();
+          const content = msg.content ?? null;
+          const images = msg.images ?? null;
 
-        await sql`
-          INSERT INTO messages (id, chat_id, sender_id, sender_name, content, images, created_at)
-          VALUES (${id}, 'hall', ${userId}, ${username}, ${content}, ${images ? sql.json(images) : null}, ${timestamp})
-        `;
+          await sql`
+            INSERT INTO messages (id, chat_id, sender_id, sender_name, content, images, created_at)
+            VALUES (${id}, 'hall', ${userId}, ${username}, ${content}, ${images ? sql.json(images) : null}, ${timestamp})
+          `;
 
-        broadcast({ type: 'hall_message', id, from: userId, fromName: username, content, images, timestamp });
+          broadcast({ type: 'hall_message', id, from: userId, fromName: username, content, images, timestamp });
 
-      } else if (msg.type === 'private_message') {
-        const to = msg.to;
-        if (!to) return;
+        } else if (msg.type === 'private_message') {
+          const to = msg.to;
+          if (!to) return;
 
-        const id = randomUUID();
-        const timestamp = Date.now();
-        const content = msg.content ?? null;
-        const images = msg.images ?? null;
-        const chatId = [userId, to].sort().join(':');
+          const id = randomUUID();
+          const timestamp = Date.now();
+          const content = msg.content ?? null;
+          const images = msg.images ?? null;
+          const chatId = [userId, to].sort().join(':');
 
-        await sql`
-          INSERT INTO messages (id, chat_id, sender_id, sender_name, content, images, created_at)
-          VALUES (${id}, ${chatId}, ${userId}, ${username}, ${content}, ${images ? sql.json(images) : null}, ${timestamp})
-        `;
+          await sql`
+            INSERT INTO messages (id, chat_id, sender_id, sender_name, content, images, created_at)
+            VALUES (${id}, ${chatId}, ${userId}, ${username}, ${content}, ${images ? sql.json(images) : null}, ${timestamp})
+          `;
 
-        const outMsg = { type: 'private_message', id, from: userId, fromName: username, to, content, images, timestamp };
-        send(to, outMsg);
-        send(userId, outMsg);
+          const outMsg = { type: 'private_message', id, from: userId, fromName: username, to, content, images, timestamp };
+          send(to, outMsg);
+          send(userId, outMsg);
 
-      } else if (msg.type === 'typing') {
-        const to = msg.to;
-        if (to) {
-          send(to, { type: 'typing', from: userId });
-        } else {
-          broadcast({ type: 'typing', from: userId }, userId);
+        } else if (msg.type === 'typing') {
+          const to = msg.to;
+          if (to) {
+            send(to, { type: 'typing', from: userId });
+          } else {
+            broadcast({ type: 'typing', from: userId }, userId);
+          }
         }
+      } catch (err) {
+        console.error('WS message handler error:', err);
       }
     });
 

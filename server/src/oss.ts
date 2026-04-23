@@ -12,6 +12,11 @@ router.get('/sign', requireAuth, (_req: AuthRequest, res) => {
   const accessKeySecret = process.env.OSS_ACCESS_KEY_SECRET!;
   const dirPrefix = process.env.OSS_DIR_PREFIX || 'gods-team-dev';
 
+  if (!bucket || !endpoint || !accessKeyId || !accessKeySecret) {
+    res.status(503).json({ error: 'OSS not configured' });
+    return;
+  }
+
   const expiration = new Date(Date.now() + 5 * 60 * 1000).toISOString();
   const key = `${dirPrefix}/${crypto.randomUUID()}`;
 

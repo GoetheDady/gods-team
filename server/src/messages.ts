@@ -6,7 +6,17 @@ import sql from './pg';
 const router = Router();
 
 router.get('/:chatId', requireAuth, async (req: AuthRequest, res) => {
-  const { chatId } = req.params;
+  const chatId = req.params.chatId as string;
+
+  // 私聊记录只允许参与方访问
+  if (chatId !== 'hall') {
+    const participants = chatId.split(':');
+    if (!participants.includes(req.userId!)) {
+      res.status(403).json({ error: 'Forbidden' });
+      return;
+    }
+  }
+
   const before = req.query.before ? Number(req.query.before) : Date.now() + 1;
   const limit = 50;
 
