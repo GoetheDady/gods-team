@@ -1,7 +1,9 @@
 import { WebSocketServer, WebSocket } from 'ws';
-import { IncomingMessage } from 'http';
-import { Server } from 'http';
+import type { IncomingMessage } from 'http';
+import type { Server } from 'http';
 import jwt from 'jsonwebtoken';
+import { randomUUID } from 'crypto';
+import sql from './pg';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-in-prod';
 
@@ -15,8 +17,8 @@ const clients = new Map<string, Client>();
 
 function broadcast(data: object, excludeUserId?: string) {
   const msg = JSON.stringify(data);
-  for (const [userId, client] of clients) {
-    if (userId !== excludeUserId && client.ws.readyState === WebSocket.OPEN) {
+  for (const [uid, client] of clients) {
+    if (uid !== excludeUserId && client.ws.readyState === WebSocket.OPEN) {
       client.ws.send(msg);
     }
   }
@@ -36,13 +38,9 @@ export function setupWebSocket(server: Server) {
     const url = new URL(req.url || '', 'http://localhost');
     const token = url.searchParams.get('token');
 
-    if (!token) {
-      ws.close(4001, 'Token required');
-      return;
-    }
+    if (!token) { ws.close(4001, 'Token required'); return; }
 
-    let userId: string;
-    let username: string;
+    let userId: string, username: string;
     try {
       const payload = jwt.verify(token, JWT_SECRET) as { userId: string; username: string };
       userId = payload.userId;
@@ -54,59 +52,53 @@ export function setupWebSocket(server: Server) {
 
     clients.set(userId, { ws, userId, username });
 
-    const onlineUsers = Array.from(clients.values()).map(c => ({
-      id: c.userId,
-      username: c.username,
-    }));
+    const onlineUsers = Array.from(clients.values()).map(c => ({ id: c.userId, username: c.username }));
     ws.send(JSON.stringify({ type: 'online_users', users: onlineUsers }));
-
     broadcast({ type: 'user_joined', userId, username }, userId);
 
-    ws.on('message', (raw) => {
-      let msg: { type: string; payload?: Record<string, unknown> };
-      try {
-        msg = JSON.parse(raw.toString());
-      } catch {
-        return;
-      }
+    ws.on('message', async (raw) => {
+      let msg: { type: string; content?: string; images?: { url: string }[]; to?: string };
+      try { msg = JSON.parse(raw.toString()); } catch { return; }
 
       if (msg.type === 'hall_message') {
-        broadcast({
-          type: 'hall_message',
-          from: userId,
-          payload: msg.payload,
-          timestamp: Date.now(),
-        });
+        const id = randomUUID();
+        const timestamp = Date.now();
+        const content = msg.content ?? null;
+        const images = msg.images ?? null;
+
+        await sql`
+          INSERT INTO messages (id, chat_id, sender_id, sender_name, content, images, created_at)
+          VALUES (${id}, 'hall', ${userId}, ${username}, ${content}, ${images ? sql.json(images) : null}, ${timestamp})
+        `;
+
+        broadcast({ type: 'hall_message', id, from: userId, fromName: username, content, images, timestamp });
+
       } else if (msg.type === 'private_message') {
-        const to = msg.payload?.to as string | undefined;
+        const to = msg.to;
         if (!to) return;
-        send(to, {
-          type: 'private_message',
-          from: userId,
-          payload: msg.payload,
-          timestamp: Date.now(),
-        });
-        send(userId, {
-          type: 'private_message',
-          from: userId,
-          payload: msg.payload,
-          timestamp: Date.now(),
-        });
+
+        const id = randomUUID();
+        const timestamp = Date.now();
+        const content = msg.content ?? null;
+        const images = msg.images ?? null;
+        const chatId = [userId, to].sort().join(':');
+
+        await sql`
+          INSERT INTO messages (id, chat_id, sender_id, sender_name, content, images, created_at)
+          VALUES (${id}, ${chatId}, ${userId}, ${username}, ${content}, ${images ? sql.json(images) : null}, ${timestamp})
+        `;
+
+        const outMsg = { type: 'private_message', id, from: userId, fromName: username, to, content, images, timestamp };
+        send(to, outMsg);
+        send(userId, outMsg);
+
       } else if (msg.type === 'typing') {
-        const to = msg.payload?.to as string | undefined;
+        const to = msg.to;
         if (to) {
           send(to, { type: 'typing', from: userId });
         } else {
           broadcast({ type: 'typing', from: userId }, userId);
         }
-      } else if (msg.type === 'hall_key_distribution') {
-        const targetUserId = msg.payload?.to as string | undefined;
-        if (!targetUserId) return;
-        send(targetUserId, {
-          type: 'hall_key_distribution',
-          from: userId,
-          payload: msg.payload,
-        });
       }
     });
 
