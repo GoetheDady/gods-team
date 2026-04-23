@@ -19,19 +19,13 @@ RUN npx tsc
 
 # Stage 3: Production runtime
 FROM node:22-alpine
-RUN apk add --no-cache python3 make g++ \
-    && rm -rf /var/cache/apk/*
 WORKDIR /app/server
 
-# Copy server build output and compiled node_modules (includes better-sqlite3 native binary)
 COPY --from=server-build /app/server/dist ./dist
 COPY --from=server-build /app/server/node_modules ./node_modules
 
 # Copy client build output
 COPY --from=client-build /app/client/dist ../client/dist
-
-# Data directory for SQLite
-RUN mkdir -p /app/data
 
 ENV NODE_ENV=production
 EXPOSE 3000
