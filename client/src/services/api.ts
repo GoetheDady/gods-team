@@ -84,6 +84,13 @@ export interface User {
   avatar_url: string | null;
 }
 
+export interface AllUser {
+  id: string;
+  username: string;
+  nickname: string | null;
+  avatar_url: string | null;
+}
+
 export interface ServerMessage {
   id: string;
   senderId: string;
@@ -152,5 +159,9 @@ export const api = {
       method: 'PATCH',
       body: JSON.stringify(data),
     });
+  },
+
+  getAllUsers(): Promise<{ users: AllUser[] }> {
+    return request('/users');
   },
 };
