@@ -56,4 +56,12 @@ router.patch('/me', requireAuth, async (req: AuthRequest, res) => {
   }
 });
 
+// GET /api/users — 返回所有注册用户（不含密码）
+router.get('/', requireAuth, async (_req, res) => {
+  const rows = await sql<{ id: string; username: string; nickname: string | null; avatar_url: string | null }[]>`
+    SELECT id, username, nickname, avatar_url FROM users ORDER BY created_at ASC
+  `;
+  res.json({ users: rows });
+});
+
 export default router;
