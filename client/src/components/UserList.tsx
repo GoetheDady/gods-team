@@ -45,6 +45,7 @@ export default function UserList({
             key={user.id}
             className={[
               styles.user,
+              isSelf ? styles.selfRow : '',
               !isOnline ? styles.offline : '',
               activePrivateId === user.id ? styles.active : '',
             ].join(' ')}

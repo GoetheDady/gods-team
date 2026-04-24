@@ -67,3 +67,11 @@
   justify-content: center;
   line-height: 1;
 }
+
+.selfRow {
+  cursor: default;
+}
+
+.selfRow:hover {
+  background: transparent;
+}
