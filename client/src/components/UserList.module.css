@@ -40,3 +40,30 @@
 .name.self {
   color: var(--gold);
 }
+
+.offline {
+  opacity: 0.4;
+}
+
+.avatarWrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 3px;
+  background: var(--danger);
+  color: #fff;
+  font-size: 9px;
+  font-family: var(--font-mono);
+  border-radius: 99px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
