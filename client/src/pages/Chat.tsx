@@ -61,11 +61,32 @@ export default function Chat({ userId, username, nickname, avatarUrl, onLogout }
 
   const [unread, setUnread] = useState<Map<string, number>>(new Map());
 
+  interface WsHallMessage { id: string; from: string; fromName: string; avatar_url?: string; content?: string; images?: { url: string }[]; timestamp: number; }
+  interface WsPrivateMessage { id: string; from: string; to: string; avatar_url?: string; content?: string; images?: { url: string }[]; timestamp: number; }
+  interface WsTypingMessage { from: string; to?: string; }
+
   const usernameMap = useRef<Map<string, string>>(new Map([[userId, username]]));
   const activePeerIdRef = useRef<string | null>(null);
   const hallTypingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const privateTypingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dragRef = useRef({ startY: 0, startHeight: 0 });
+
+  async function maybeNotify(
+    peerName: string,
+    content: string,
+    isCurrentlyOpen: boolean,
+  ) {
+    if (Notification.permission === 'default') {
+      await Notification.requestPermission();
+    }
+    if (Notification.permission !== 'granted') return;
+    const shouldNotify = !document.hasFocus() || !isCurrentlyOpen;
+    if (!shouldNotify) return;
+    new Notification(peerName, {
+      body: content.slice(0, 80),
+      icon: '/favicon.ico',
+    });
+  }
 
   useEffect(() => {
     const unsub = wsClient.on((msg: WsMessage) => {
@@ -96,14 +117,14 @@ export default function Chat({ userId, username, nickname, avatarUrl, onLogout }
       } else if (msg.type === 'user_left') {
         setOnlineUsers(prev => prev.filter(u => u.id !== msg.userId));
       } else if (msg.type === 'hall_message') {
-        const m = msg as any;
+        const m = msg as unknown as WsHallMessage;
         setHallMessages(prev => [...prev, {
           id: m.id, from_id: m.from, from_username: m.fromName,
           avatar_url: m.avatar_url ?? null,
           content: m.content ?? '', images: m.images ?? undefined, timestamp: m.timestamp,
         }]);
       } else if (msg.type === 'private_message') {
-        const m = msg as any;
+        const m = msg as unknown as WsPrivateMessage;
         const peer = m.from === userId ? m.to : m.from;
         const isCurrentlyOpen = peer === activePeerIdRef.current;
 
@@ -128,7 +149,7 @@ export default function Chat({ userId, username, nickname, avatarUrl, onLogout }
           maybeNotify(peerName, content, isCurrentlyOpen);
         }
       } else if (msg.type === 'typing') {
-        const m = msg as any;
+        const m = msg as unknown as WsTypingMessage;
         const name = usernameMap.current.get(m.from) || m.from;
         if (m.to) {
           setPrivateTyping([name]);
@@ -162,23 +183,6 @@ export default function Chat({ userId, username, nickname, avatarUrl, onLogout }
       setHallMessages([]);
     };
   }, [userId]);
-
-  async function maybeNotify(
-    peerName: string,
-    content: string,
-    isCurrentlyOpen: boolean,
-  ) {
-    if (Notification.permission === 'default') {
-      await Notification.requestPermission();
-    }
-    if (Notification.permission !== 'granted') return;
-    const shouldNotify = !document.hasFocus() || !isCurrentlyOpen;
-    if (!shouldNotify) return;
-    new Notification(peerName, {
-      body: content.slice(0, 80),
-      icon: '/favicon.ico',
-    });
-  }
 
   function onDividerMouseDown(e: React.MouseEvent) {
     e.preventDefault();

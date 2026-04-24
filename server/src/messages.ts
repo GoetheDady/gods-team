@@ -7,8 +7,8 @@ import { wsBroadcast, wsSend } from './ws';
 
 const router = Router();
 
-// 发送消息（写库 + WS 广播/推送）
-// 客户端通过 HTTP POST 发送消息，服务端写入 PostgreSQL 后通过 WebSocket 推送给在线用户
+// 发送消息（写库 + Socket.IO 广播/推送）
+// 客户端通过 HTTP POST 发送消息，服务端写入 PostgreSQL 后通过 Socket.IO 推送给在线用户
 router.post('/', requireAuth, async (req: AuthRequest, res) => {
   const { chatId, content, images, to } = req.body as {
     chatId?: string;
@@ -92,7 +92,13 @@ router.get('/:chatId', requireAuth, async (req: AuthRequest, res) => {
     images: { url: string }[] | null;
     created_at: number;
   }[]>`
-    SELECT m.id, m.sender_id, m.sender_name, u.avatar_url, m.content, m.images, m.created_at
+    SELECT m.id,
+           m.sender_id,
+           COALESCE(u.nickname, u.username, m.sender_name) AS sender_name,
+           u.avatar_url,
+           m.content,
+           m.images,
+           m.created_at
     FROM messages m
     LEFT JOIN users u ON u.id = m.sender_id
     WHERE chat_id = ${chatId}

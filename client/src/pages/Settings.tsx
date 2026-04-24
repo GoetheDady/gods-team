@@ -10,7 +10,16 @@ interface InviteCode {
   used_at: number | null;
 }
 
-export default function Settings() {
+interface Props {
+  onProfileUpdated: (user: {
+    userId: string;
+    username: string;
+    nickname: string | null;
+    avatar_url: string | null;
+  }) => void;
+}
+
+export default function Settings({ onProfileUpdated }: Props) {
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -55,6 +64,8 @@ export default function Settings() {
     setProfileSuccess('');
     try {
       await api.updateProfile({ nickname: trimmed });
+      const user = await api.me();
+      onProfileUpdated(user);
       setNickname(trimmed);
       setProfileSuccess('昵称已保存');
       setTimeout(() => setProfileSuccess(''), 2000);
@@ -86,6 +97,8 @@ export default function Settings() {
 
       const uploadedUrl = `${ossUrl}/${key}`;
       await api.updateProfile({ avatar_url: uploadedUrl });
+      const user = await api.me();
+      onProfileUpdated(user);
       setAvatarUrl(uploadedUrl);
       setProfileSuccess('头像已更新');
       setTimeout(() => setProfileSuccess(''), 2000);

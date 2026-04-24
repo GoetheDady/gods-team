@@ -1,4 +1,5 @@
-import { getAccessToken } from './api';
+import { io, type Socket } from 'socket.io-client';
+import { getAccessToken, refreshTokens } from './api';
 
 export interface WsMessage {
   type: string;
@@ -15,49 +16,58 @@ export interface WsMessage {
 type MessageHandler = (msg: WsMessage) => void;
 
 class WsClient {
-  private socket: WebSocket | null = null;
+  private socket: Socket | null = null;
   private handlers = new Set<MessageHandler>();
-  private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  private shouldReconnect = false;
+  private replaced = false;
 
-  // 连接后立即发送 auth 消息，不再通过 URL 参数传 token
+  // 连接后立即发送 auth 事件，携带 access token
   connect() {
-    if (this.socket?.readyState === WebSocket.OPEN) return;
+    this.shouldReconnect = true;
+    if (this.socket?.connected || this.socket?.active) return;
 
-    const wsUrl = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws`;
-    this.socket = new WebSocket(wsUrl);
+    const socket = io({ path: '/ws', autoConnect: false });
+    this.socket = socket;
+    this.replaced = false;
 
-    this.socket.onopen = () => {
-      // 连接建立后发送 auth 消息，携带 access token
+    socket.on('connect', async () => {
+      let token = getAccessToken();
+      if (!token && await refreshTokens()) token = getAccessToken();
+      if (token) socket.emit('auth', token);
+    });
+
+    socket.on('message', (msg: WsMessage) => {
+      this.handlers.forEach(h => h(msg));
+    });
+
+    socket.on('replaced', () => {
+      this.replaced = true;
+      this.shouldReconnect = false;
+    });
+
+    socket.on('auth_error', async () => {
+      if (!await refreshTokens()) return;
       const token = getAccessToken();
-      if (token) {
-        this.socket?.send(JSON.stringify({ type: 'auth', token }));
-      }
-    };
+      if (token && this.shouldReconnect) socket.emit('auth', token);
+    });
 
-    this.socket.onmessage = (e) => {
-      try {
-        const msg: WsMessage = JSON.parse(e.data);
-        this.handlers.forEach(h => h(msg));
-      } catch {
-        // ignore malformed messages
-      }
-    };
+    socket.on('disconnect', () => {
+      if (this.replaced) return;
+      if (!this.shouldReconnect && this.socket === socket) this.socket = null;
+    });
 
-    this.socket.onclose = () => {
-      this.reconnectTimer = setTimeout(() => this.connect(), 3000);
-    };
+    socket.connect();
   }
 
   disconnect() {
-    if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
-    this.socket?.close();
+    this.shouldReconnect = false;
+    this.socket?.disconnect();
     this.socket = null;
   }
 
-  send(data: object) {
-    if (this.socket?.readyState === WebSocket.OPEN) {
-      this.socket.send(JSON.stringify(data));
-    }
+  send(data: { type?: string; to?: string }) {
+    if (!this.socket?.connected) return;
+    if (data.type === 'typing') this.socket.emit('typing', { to: data.to });
   }
 
   on(handler: MessageHandler) {

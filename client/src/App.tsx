@@ -8,19 +8,22 @@ import { api } from './services/api';
 import { getAccessToken, getRefreshToken, refreshTokens, clearTokens } from './services/api';
 
 export default function App() {
-  const [auth, setAuth] = useState<{
+  type AuthUser = {
     userId: string;
     username: string;
     nickname: string | null;
     avatar_url: string | null;
-  } | null | undefined>(undefined);
+  };
+
+  const [auth, setAuth] = useState<AuthUser | null | undefined>(undefined);
 
   useEffect(() => {
     // 启动时检查 localStorage 中是否有有效 token
     const accessToken = getAccessToken();
     const refreshToken = getRefreshToken();
     if (!accessToken && !refreshToken) {
-      setAuth(null);
+      // setAuth in an async path below, but this sync branch must also set null
+      Promise.resolve().then(() => setAuth(null));
       return;
     }
 
@@ -53,13 +56,17 @@ export default function App() {
       .catch(() => setAuth({ userId, username, nickname: null, avatar_url: null }));
   }
 
+  function handleProfileUpdated(user: AuthUser) {
+    setAuth(user);
+  }
+
   return (
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={auth ? <Navigate to="/chat" /> : <Login onLogin={handleLogin} />} />
         <Route path="/register" element={auth ? <Navigate to="/chat" /> : <Register onLogin={handleLogin} />} />
         <Route path="/chat" element={auth ? <Chat userId={auth.userId} username={auth.username} nickname={auth.nickname} avatarUrl={auth.avatar_url} onLogout={() => setAuth(null)} /> : <Navigate to="/login" />} />
-        <Route path="/settings" element={auth ? <Settings /> : <Navigate to="/login" />} />
+        <Route path="/settings" element={auth ? <Settings onProfileUpdated={handleProfileUpdated} /> : <Navigate to="/login" />} />
         <Route path="*" element={<Navigate to={auth ? '/chat' : '/login'} />} />
       </Routes>
     </BrowserRouter>
