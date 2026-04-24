@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, clearTokens } from '../services/api';
 import type { ServerMessage, AllUser } from '../services/api';
@@ -112,7 +112,7 @@ export default function Chat({ userId, username, nickname, avatarUrl, onLogout }
             from_username: usernameMap.current.get(m.from) || m.from,
             content: m.content ?? '', images: m.images ?? undefined, timestamp: m.timestamp,
           }]);
-        } else {
+        } else if (m.from !== userId) {
           setUnread(prev => {
             const next = new Map(prev);
             next.set(peer, (next.get(peer) ?? 0) + 1);
@@ -120,9 +120,11 @@ export default function Chat({ userId, username, nickname, avatarUrl, onLogout }
           });
         }
 
-        const peerName = usernameMap.current.get(peer) || peer;
-        const content = m.content || '[图片]';
-        maybeNotify(peerName, content, peer, isCurrentlyOpen);
+        if (m.from !== userId) {
+          const peerName = usernameMap.current.get(peer) || peer;
+          const content = m.content || '[图片]';
+          maybeNotify(peerName, content, peer, isCurrentlyOpen);
+        }
       } else if (msg.type === 'typing') {
         const m = msg as any;
         const name = usernameMap.current.get(m.from) || m.from;
@@ -248,6 +250,7 @@ export default function Chat({ userId, username, nickname, avatarUrl, onLogout }
     setActivePeerId(peerId);
     setActivePeerUsername(peerName);
     setActivePanel('private');
+    setPrivateMessages([]);
     setUnread(prev => {
       const next = new Map(prev);
       next.delete(peerId);
@@ -272,7 +275,7 @@ export default function Chat({ userId, username, nickname, avatarUrl, onLogout }
     navigate('/login');
   }
 
-  const onlineUserIds = new Set(onlineUsers.map(u => u.id));
+  const onlineUserIds = useMemo(() => new Set(onlineUsers.map(u => u.id)), [onlineUsers]);
   const inputPlaceholder = activePeerId
     ? (activePanel === 'hall' ? '发言于大厅...' : `私聊 ${activePeerUsername}...`)
     : '发言于大厅...';
