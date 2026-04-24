@@ -5,7 +5,7 @@ import Register from './pages/Register';
 import Chat from './pages/Chat';
 import Settings from './pages/Settings';
 import { api } from './services/api';
-import { getAccessToken, clearTokens } from './services/api';
+import { getAccessToken, getRefreshToken, refreshTokens, clearTokens } from './services/api';
 
 export default function App() {
   const [auth, setAuth] = useState<{
@@ -17,18 +17,32 @@ export default function App() {
 
   useEffect(() => {
     // 启动时检查 localStorage 中是否有有效 token
-    const token = getAccessToken();
-    if (!token) {
+    const accessToken = getAccessToken();
+    const refreshToken = getRefreshToken();
+    if (!accessToken && !refreshToken) {
       setAuth(null);
       return;
     }
-    // 带 Authorization 头验证 token 是否仍然有效
-    api.me()
-      .then(user => setAuth(user))
-      .catch(() => {
-        clearTokens();
-        setAuth(null);
-      });
+
+    async function restoreAuth() {
+      try {
+        setAuth(await api.me());
+      } catch {
+        if (!refreshToken || !(await refreshTokens())) {
+          clearTokens();
+          setAuth(null);
+          return;
+        }
+        try {
+          setAuth(await api.me());
+        } catch {
+          clearTokens();
+          setAuth(null);
+        }
+      }
+    }
+
+    restoreAuth();
   }, []);
 
   if (auth === undefined) return null;

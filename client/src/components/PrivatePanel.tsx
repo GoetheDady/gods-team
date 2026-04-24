@@ -1,6 +1,5 @@
 import MessageList from './MessageList';
 import type { Message } from './MessageList';
-import styles from './PrivatePanel.module.css';
 
 interface Props {
   messages: Message[];
@@ -14,7 +13,7 @@ export default function PrivatePanel({
   messages, currentUserId, typingUsernames, hasMore, onLoadMore,
 }: Props) {
   return (
-    <div className={styles.messages}>
+    <div className="flex flex-1 flex-col overflow-hidden">
       <MessageList
         messages={messages}
         currentUserId={currentUserId}

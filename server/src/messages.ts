@@ -38,10 +38,11 @@ router.post('/', requireAuth, async (req: AuthRequest, res) => {
     }
   }
 
-  const [userProfile] = await sql<{ nickname: string | null }[]>`
-    SELECT nickname FROM users WHERE id = ${userId}
+  const [userProfile] = await sql<{ nickname: string | null; avatar_url: string | null }[]>`
+    SELECT nickname, avatar_url FROM users WHERE id = ${userId}
   `;
   const senderName = userProfile?.nickname ?? username;
+  const senderAvatarUrl = userProfile?.avatar_url ?? null;
 
   // 先写库再推送，确保消息持久化后在线用户才能收到
   await sql`
@@ -51,10 +52,10 @@ router.post('/', requireAuth, async (req: AuthRequest, res) => {
 
   if (chatId === 'hall') {
     // 大厅消息：广播给所有在线用户（排除发送者，发送者客户端已在本地添加）
-    wsBroadcast({ type: 'hall_message', id, from: userId, fromName: senderName, content: msgContent, images: msgImages, timestamp });
+    wsBroadcast({ type: 'hall_message', id, from: userId, fromName: senderName, avatar_url: senderAvatarUrl, content: msgContent, images: msgImages, timestamp });
   } else {
     // 私聊消息：双方各收一份（发送者也需要收到，确保多设备同步）
-    const outMsg = { type: 'private_message', id, from: userId, fromName: senderName, to, content: msgContent, images: msgImages, timestamp };
+    const outMsg = { type: 'private_message', id, from: userId, fromName: senderName, avatar_url: senderAvatarUrl, to, content: msgContent, images: msgImages, timestamp };
     if (to) wsSend(to, outMsg);
     wsSend(userId, outMsg);
   }
@@ -86,15 +87,17 @@ router.get('/:chatId', requireAuth, async (req: AuthRequest, res) => {
     id: string;
     sender_id: string;
     sender_name: string;
+    avatar_url: string | null;
     content: string | null;
     images: { url: string }[] | null;
     created_at: number;
   }[]>`
-    SELECT id, sender_id, sender_name, content, images, created_at
-    FROM messages
+    SELECT m.id, m.sender_id, m.sender_name, u.avatar_url, m.content, m.images, m.created_at
+    FROM messages m
+    LEFT JOIN users u ON u.id = m.sender_id
     WHERE chat_id = ${chatId}
-      AND created_at < ${before}
-    ORDER BY created_at DESC
+      AND m.created_at < ${before}
+    ORDER BY m.created_at DESC
     LIMIT ${limit + 1}
   `;
 
@@ -104,6 +107,7 @@ router.get('/:chatId', requireAuth, async (req: AuthRequest, res) => {
     id: r.id,
     senderId: r.sender_id,
     senderName: r.sender_name,
+    senderAvatarUrl: r.avatar_url,
     content: r.content ?? '',
     images: r.images,
     createdAt: Number(r.created_at),

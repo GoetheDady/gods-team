@@ -9,14 +9,14 @@ services:
       - gods-team-data:/app/data
     networks:
       - gods-net
+    env_file:
+      - server/.env
     environment:
       - NODE_ENV=production
       - JWT_SECRET=${JWT_SECRET:-change-me-in-prod}
       - DATABASE_URL=postgresql://gods:gods123@gods-team-db:5432/gods_team_prod
       - OSS_ENDPOINT=oss-cn-beijing.aliyuncs.com
       - OSS_BUCKET=gdsw-ai-web-chat
-      - OSS_ACCESS_KEY_ID=${OSS_ACCESS_KEY_ID}
-      - OSS_ACCESS_KEY_SECRET=${OSS_ACCESS_KEY_SECRET}
       - OSS_DIR_PREFIX=gods-team-prod
 
 networks:

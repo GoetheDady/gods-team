@@ -2,7 +2,6 @@ import { useState, useRef } from 'react';
 import type { KeyboardEvent, ChangeEvent, ClipboardEvent } from 'react';
 import { Paperclip, X } from 'lucide-react';
 import { api } from '../services/api';
-import styles from './MessageInput.module.css';
 
 interface Props {
   onSend: (text: string, imageUrl?: string) => void;
@@ -108,24 +107,24 @@ export default function MessageInput({ onSend, onTyping, disabled, placeholder }
   }
 
   return (
-    <div className={styles.container}>
+    <div className="flex flex-col">
       {preview && (
-        <div className={styles.preview}>
-          <img src={preview} alt="preview" className={styles.previewImg} />
-          {uploading && <div className={styles.uploadingOverlay}>上传中...</div>}
-          <button className={styles.removeBtn} onClick={removeImage}><X size={10} strokeWidth={3} /></button>
+        <div className="relative block w-fit px-4 pt-2">
+          <img src={preview} alt="preview" className="max-h-[120px] max-w-[200px] rounded object-contain" />
+          {uploading && <div className="absolute inset-0 flex items-center justify-center rounded bg-black/50 text-xs text-white">上传中...</div>}
+          <button className="absolute right-3 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-jianghu-danger text-xs leading-none text-white" onClick={removeImage}><X size={10} strokeWidth={3} /></button>
         </div>
       )}
-      <div className={styles.row}>
+      <div className="flex items-end gap-3 border-t border-jianghu-border-subtle bg-jianghu-input px-4 py-3">
         <input
           ref={fileInputRef}
           type="file"
           accept="image/*"
-          className={styles.fileInput}
+          className="hidden"
           onChange={handleFileSelect}
         />
         <button
-          className={styles.attachBtn}
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded border border-jianghu-border-gold text-lg text-jianghu-gold transition-colors duration-150 ease-in hover:bg-jianghu-gold-glow disabled:cursor-not-allowed disabled:opacity-40"
           onClick={() => fileInputRef.current?.click()}
           disabled={disabled || uploading}
           title="发送图片"
@@ -134,7 +133,7 @@ export default function MessageInput({ onSend, onTyping, disabled, placeholder }
         </button>
         <textarea
           ref={textareaRef}
-          className={styles.input}
+          className="max-h-[120px] min-h-9 flex-1 resize-none border-b border-jianghu-border-gold py-2 leading-normal transition-colors duration-150 ease-in placeholder:text-jianghu-muted focus:border-jianghu-gold"
           value={text}
           onChange={handleChange}
           onKeyDown={handleKeyDown}
@@ -146,7 +145,7 @@ export default function MessageInput({ onSend, onTyping, disabled, placeholder }
           rows={1}
         />
         <button
-          className={styles.send}
+          className="shrink-0 rounded bg-jianghu-gold px-[18px] py-2 font-display text-sm text-[#0f1014] transition duration-150 ease-in hover:-translate-y-px hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
           onClick={submit}
           disabled={disabled || uploading || (!text.trim() && !pendingImageUrl)}
         >

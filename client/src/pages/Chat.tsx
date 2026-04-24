@@ -9,7 +9,6 @@ import UserList from '../components/UserList';
 import MessageList from '../components/MessageList';
 import MessageInput from '../components/MessageInput';
 import PrivatePanel from '../components/PrivatePanel';
-import styles from './Chat.module.css';
 
 interface OnlineUser {
   id: string;
@@ -31,6 +30,7 @@ function toMessage(m: ServerMessage): Message {
     id: m.id,
     from_id: m.senderId,
     from_username: m.senderName,
+    avatar_url: m.senderAvatarUrl,
     content: m.content,
     images: m.images ?? undefined,
     timestamp: m.createdAt,
@@ -99,6 +99,7 @@ export default function Chat({ userId, username, nickname, avatarUrl, onLogout }
         const m = msg as any;
         setHallMessages(prev => [...prev, {
           id: m.id, from_id: m.from, from_username: m.fromName,
+          avatar_url: m.avatar_url ?? null,
           content: m.content ?? '', images: m.images ?? undefined, timestamp: m.timestamp,
         }]);
       } else if (msg.type === 'private_message') {
@@ -110,6 +111,7 @@ export default function Chat({ userId, username, nickname, avatarUrl, onLogout }
           setPrivateMessages(prev => [...prev, {
             id: m.id, from_id: m.from,
             from_username: usernameMap.current.get(m.from) || m.from,
+            avatar_url: m.avatar_url ?? null,
             content: m.content ?? '', images: m.images ?? undefined, timestamp: m.timestamp,
           }]);
         } else if (m.from !== userId) {
@@ -123,7 +125,7 @@ export default function Chat({ userId, username, nickname, avatarUrl, onLogout }
         if (m.from !== userId) {
           const peerName = usernameMap.current.get(peer) || peer;
           const content = m.content || '[图片]';
-          maybeNotify(peerName, content, peer, isCurrentlyOpen);
+          maybeNotify(peerName, content, isCurrentlyOpen);
         }
       } else if (msg.type === 'typing') {
         const m = msg as any;
@@ -164,7 +166,6 @@ export default function Chat({ userId, username, nickname, avatarUrl, onLogout }
   async function maybeNotify(
     peerName: string,
     content: string,
-    peer: string,
     isCurrentlyOpen: boolean,
   ) {
     if (Notification.permission === 'default') {
@@ -281,20 +282,20 @@ export default function Chat({ userId, username, nickname, avatarUrl, onLogout }
     : '发言于大厅...';
 
   return (
-    <div className={styles.layout}>
-      <header className={styles.header}>
-        <div className={styles.headerLeft}>
-          <span className={styles.logo}>江湖</span>
-          <span className={styles.roomName}># 公共大厅</span>
+    <div className="grid h-full grid-cols-[200px_1fr] grid-rows-[48px_1fr] [grid-template-areas:'header_header'_'sidebar_main']">
+      <header className="[grid-area:header] flex items-center justify-between border-b border-jianghu-border-subtle bg-jianghu-elevated px-5">
+        <div className="flex items-center gap-4">
+          <span className="font-display text-lg text-jianghu-gold">江湖</span>
+          <span className="font-mono text-xs text-jianghu-secondary"># 公共大厅</span>
         </div>
-        <div className={styles.headerRight}>
-          <span className={styles.username}>{nickname ?? username}</span>
-          <button className={styles.inviteBtn} onClick={() => navigate('/settings')}>设置</button>
-          <button className={styles.logoutBtn} onClick={handleLogout}>退出</button>
+        <div className="flex items-center gap-4">
+          <span className="font-mono text-xs text-jianghu-secondary">{nickname ?? username}</span>
+          <button className="rounded border border-jianghu-border-gold px-2.5 py-1 text-xs text-jianghu-secondary transition-colors duration-150 ease-in hover:border-jianghu-gold hover:text-jianghu-gold" onClick={() => navigate('/settings')}>设置</button>
+          <button className="text-xs text-jianghu-muted transition-colors duration-150 ease-in hover:text-jianghu-danger" onClick={handleLogout}>退出</button>
         </div>
       </header>
 
-      <aside className={styles.sidebar}>
+      <aside className="[grid-area:sidebar] overflow-y-auto border-r border-jianghu-border-subtle bg-jianghu-sidebar">
         <UserList
           allUsers={allUsers}
           onlineUserIds={onlineUserIds}
@@ -307,10 +308,10 @@ export default function Chat({ userId, username, nickname, avatarUrl, onLogout }
         />
       </aside>
 
-      <main className={styles.main}>
-        <div className={styles.mainInner}>
+      <main className="[grid-area:main] flex flex-col overflow-hidden">
+        <div className="flex flex-1 flex-col overflow-hidden">
           <div
-            className={`${styles.hallPane} ${activePanel === 'hall' ? styles.paneActive : ''}`}
+            className={`flex min-h-20 flex-1 flex-col overflow-hidden border-r border-jianghu-border-subtle outline outline-1 -outline-offset-1 transition-[outline-color] duration-150 ease-in ${activePanel === 'hall' ? 'outline-jianghu-gold' : 'outline-transparent'}`}
             onClick={() => setActivePanel('hall')}
           >
             <MessageList
@@ -325,18 +326,18 @@ export default function Chat({ userId, username, nickname, avatarUrl, onLogout }
           {activePeerId && (
             <>
               <div
-                className={`${styles.divider} ${isDragging ? styles.dragging : ''}`}
+                className={`h-[5px] shrink-0 cursor-row-resize bg-transparent transition-colors duration-150 ease-in hover:bg-jianghu-gold ${isDragging ? 'bg-jianghu-gold' : ''}`}
                 onMouseDown={onDividerMouseDown}
               />
               <div
-                className={`${styles.privatePane} ${activePanel === 'private' ? styles.paneActive : ''}`}
+                className={`flex min-h-20 shrink-0 flex-col overflow-hidden border-t border-jianghu-border-subtle outline outline-1 -outline-offset-1 transition-[outline-color] duration-150 ease-in ${activePanel === 'private' ? 'outline-jianghu-gold' : 'outline-transparent'}`}
                 style={{ height: privatePaneHeight }}
                 onClick={() => setActivePanel('private')}
               >
-                <div className={styles.paneHeader}>
+                <div className="flex shrink-0 items-center justify-between border-b border-jianghu-border-subtle px-4 py-1.5 font-mono text-xs text-jianghu-secondary">
                   <span>私聊 · {activePeerUsername}</span>
                   <button
-                    className={styles.paneCloseBtn}
+                    className="text-base leading-none text-jianghu-muted transition-colors duration-150 ease-in hover:text-jianghu-text"
                     onClick={e => { e.stopPropagation(); closePrivate(); }}
                   >×</button>
                 </div>
@@ -352,15 +353,15 @@ export default function Chat({ userId, username, nickname, avatarUrl, onLogout }
           )}
         </div>
 
-        <div className={styles.inputArea}>
+        <div className="shrink-0">
           {activePeerId && (
-            <div className={styles.panelTabs}>
+            <div className="flex gap-1 px-4 pt-1.5">
               <button
-                className={`${styles.tab} ${activePanel === 'hall' ? styles.tabActive : ''}`}
+                className={`rounded border px-2.5 py-[3px] font-mono text-[11px] transition-colors duration-150 ease-in ${activePanel === 'hall' ? 'border-jianghu-border-gold text-jianghu-gold' : 'border-transparent text-jianghu-muted'}`}
                 onClick={() => setActivePanel('hall')}
               >大厅</button>
               <button
-                className={`${styles.tab} ${activePanel === 'private' ? styles.tabActive : ''}`}
+                className={`rounded border px-2.5 py-[3px] font-mono text-[11px] transition-colors duration-150 ease-in ${activePanel === 'private' ? 'border-jianghu-border-gold text-jianghu-gold' : 'border-transparent text-jianghu-muted'}`}
                 onClick={() => setActivePanel('private')}
               >私聊 · {activePeerUsername}</button>
             </div>

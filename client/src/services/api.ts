@@ -24,7 +24,7 @@ export function clearTokens() {
 
 // 用 refresh token 换新的 access + refresh token
 // 刷新成功自动更新 localStorage，返回 true；失败返回 false
-async function refresh(): Promise<boolean> {
+export async function refreshTokens(): Promise<boolean> {
   const refreshToken = getRefreshToken();
   if (!refreshToken) return false;
 
@@ -57,7 +57,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 
   if (res.status === 401 && !path.includes('/auth/')) {
     // access token 过期，尝试刷新
-    const ok = await refresh();
+    const ok = await refreshTokens();
     if (ok) {
       // 刷新成功，用新 token 重试原请求
       const newToken = getAccessToken();
@@ -95,6 +95,7 @@ export interface ServerMessage {
   id: string;
   senderId: string;
   senderName: string;
+  senderAvatarUrl: string | null;
   content: string;
   images: { url: string }[] | null;
   createdAt: number;
