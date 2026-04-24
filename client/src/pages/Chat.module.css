@@ -38,10 +38,10 @@
   height: 100%;
   display: grid;
   grid-template-rows: 48px 1fr;
-  grid-template-columns: 200px 1fr 280px;
+  grid-template-columns: 200px 1fr;
   grid-template-areas:
-    "header header header"
-    "sidebar main private";
+    "header header"
+    "sidebar main";
 }
 
 .header {
@@ -84,10 +84,6 @@
   color: var(--text-secondary);
 }
 
-.username span {
-  color: var(--gold);
-}
-
 .inviteBtn {
   font-size: 12px;
   color: var(--text-secondary);
@@ -126,11 +122,101 @@
   overflow: hidden;
 }
 
-.private {
-  grid-area: private;
-  background: var(--bg-sidebar);
-  border-left: 1px solid var(--border-subtle);
-  overflow: hidden;
+.mainInner {
+  flex: 1;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+}
+
+.hallPane {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 80px;
+  outline: 1px solid transparent;
+  transition: outline-color var(--transition);
+}
+
+.hallPane.paneActive {
+  outline-color: var(--gold);
+  outline-offset: -1px;
+}
+
+.divider {
+  height: 5px;
+  cursor: row-resize;
+  background: transparent;
+  flex-shrink: 0;
+  transition: background var(--transition);
+}
+
+.divider:hover,
+.divider.dragging {
+  background: var(--gold);
+}
+
+.privatePane {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 80px;
+  border-top: 1px solid var(--border-subtle);
+  outline: 1px solid transparent;
+  transition: outline-color var(--transition);
+}
+
+.privatePane.paneActive {
+  outline-color: var(--gold);
+  outline-offset: -1px;
+}
+
+.paneHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 16px;
+  font-size: 12px;
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+}
+
+.paneCloseBtn {
+  font-size: 16px;
+  color: var(--text-muted);
+  line-height: 1;
+  transition: color var(--transition);
+}
+
+.paneCloseBtn:hover {
+  color: var(--text-primary);
+}
+
+.inputArea {
+  flex-shrink: 0;
+}
+
+.panelTabs {
+  display: flex;
+  gap: 4px;
+  padding: 6px 16px 0;
+}
+
+.tab {
+  font-size: 11px;
+  font-family: var(--font-mono);
+  padding: 3px 10px;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  border: 1px solid transparent;
+  transition: color var(--transition), border-color var(--transition);
+}
+
+.tabActive {
+  color: var(--gold);
+  border-color: var(--border-gold);
 }
