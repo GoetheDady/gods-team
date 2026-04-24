@@ -33,3 +33,7 @@ Thumbs.db
 
 # Claude Code
 .claude/
+
+# Test artifacts
+client/.vitest-attachments/
+client/tests/__screenshots__/

@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>江湖聊天室 · 个人资料</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:         #08090e;
+  --surface:    #0f1320;
+  --surface-2:  #151b2c;
+  --border:     #1e2638;
+  --border-2:   #28304a;
+  --gold:       #c9a84c;
+  --gold-dim:   #8b6914;
+  --gold-pale:  rgba(201,168,76,0.10);
+  --gold-glow:  rgba(201,168,76,0.22);
+  --text:       #ddd5be;
+  --text-sub:   #6a7290;
+  --text-dim:   #30384f;
+  --green:      #4caf6a;
+  --r-card:     14px;
+  --r-btn:      8px;
+  --r-input:    8px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  font-family:'PingFang SC','Helvetica Neue',sans-serif;
+  background:var(--bg);color:var(--text);
+  display:flex;height:100vh;overflow:hidden;
+}
+
+/* ─────────── SETTINGS ─────────── */
+.settings{
+  width:420px;flex-shrink:0;
+  display:flex;flex-direction:column;
+  border-right:1px solid var(--border);
+  background:var(--surface);
+}
+.settings-hdr{
+  padding:26px 32px 20px;
+  border-bottom:1px solid var(--border);
+}
+.settings-hdr h1{
+  font-family:'Noto Serif SC',serif;
+  font-size:20px;letter-spacing:6px;
+  color:var(--gold);font-weight:400;
+}
+.settings-body{
+  flex:1;overflow-y:auto;
+  padding:24px 28px;
+  display:flex;flex-direction:column;gap:20px;
+}
+
+/* profile card */
+.card{
+  background:var(--surface-2);
+  border:1px solid var(--border);
+  border-radius:var(--r-card);
+  padding:24px;
+  position:relative;overflow:hidden;
+}
+/* ambient gold behind avatar */
+.card::before{
+  content:'';position:absolute;
+  top:-60px;left:-60px;
+  width:240px;height:240px;
+  background:radial-gradient(circle,var(--gold-pale) 0%,transparent 65%);
+  pointer-events:none;
+}
+.section-label{
+  font-size:9px;letter-spacing:3.5px;
+  color:var(--text-dim);text-transform:uppercase;
+  margin-bottom:22px;
+}
+
+/* avatar upload */
+.avatar-upload{display:flex;align-items:center;gap:22px;margin-bottom:24px;}
+.avatar-ring{
+  position:relative;width:84px;height:84px;flex-shrink:0;cursor:pointer;
+}
+/* spinning dashed ring on hover */
+.avatar-ring svg.dashed-ring{
+  position:absolute;inset:-5px;
+  width:calc(100% + 10px);height:calc(100% + 10px);
+  opacity:0;transition:opacity 0.3s;
+}
+.avatar-ring:hover svg.dashed-ring{opacity:1;animation:spin 8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.avatar-circle{
+  width:84px;height:84px;border-radius:50%;
+  background:linear-gradient(145deg,var(--gold),var(--gold-dim));
+  display:flex;align-items:center;justify-content:center;
+  font-family:'Noto Serif SC',serif;font-size:32px;font-weight:600;
+  color:rgba(0,0,0,0.6);
+  position:relative;overflow:hidden;
+  transition:transform 0.2s;
+}
+.avatar-ring:hover .avatar-circle{transform:scale(0.95);}
+.avatar-overlay{
+  position:absolute;inset:0;border-radius:50%;
+  background:rgba(0,0,0,0.52);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;
+  opacity:0;transition:opacity 0.2s;
+}
+.avatar-ring:hover .avatar-overlay{opacity:1;}
+.overlay-icon{font-size:16px;color:#fff;}
+.overlay-txt{font-size:10px;color:rgba(255,255,255,0.75);letter-spacing:1px;}
+
+.avatar-info h3{font-size:13px;color:var(--text);margin-bottom:6px;}
+.avatar-info p{font-size:12px;color:var(--text-sub);line-height:1.8;}
+
+/* field */
+.field{display:flex;flex-direction:column;gap:8px;}
+.field-lbl{font-size:11px;color:var(--text-sub);letter-spacing:0.8px;}
+.field-row{display:flex;gap:10px;}
+.field-input{
+  flex:1;background:var(--bg);
+  border:1px solid var(--border-2);
+  border-radius:var(--r-input);
+  padding:11px 16px;color:var(--text);
+  font-size:14px;font-family:inherit;outline:none;
+  transition:border-color 0.2s,box-shadow 0.2s;
+}
+.field-input:focus{
+  border-color:var(--gold);
+  box-shadow:0 0 0 3px var(--gold-pale);
+}
+.field-input::placeholder{color:var(--text-dim);}
+.btn-save{
+  background:var(--gold);color:rgba(0,0,0,0.75);
+  border:none;border-radius:var(--r-btn);
+  padding:11px 22px;font-size:13px;font-weight:700;
+  cursor:pointer;letter-spacing:0.3px;white-space:nowrap;
+  transition:background 0.15s,transform 0.1s;
+}
+.btn-save:hover{background:#d4b25c;}
+.btn-save:active{transform:scale(0.97);}
+
+/* invite card */
+.invite-list{display:flex;flex-direction:column;margin-bottom:16px;}
+.invite-item{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:11px 0;border-bottom:1px solid var(--border);
+}
+.invite-item:last-child{border-bottom:none;}
+.invite-code{
+  font-family:'SF Mono','Menlo',monospace;
+  font-size:12px;color:var(--gold);letter-spacing:3px;
+}
+.invite-status{font-size:11px;color:var(--text-dim);}
+.invite-status.used{color:#2a6640;}
+.btn-gen{
+  width:100%;background:transparent;
+  border:1px solid var(--border-2);
+  border-radius:var(--r-btn);color:var(--text-sub);
+  font-size:12px;padding:10px;cursor:pointer;
+  transition:border-color 0.2s,color 0.2s;
+  font-family:inherit;letter-spacing:0.5px;
+}
+.btn-gen:hover{border-color:var(--gold);color:var(--gold);}
+
+/* ─────────── CHAT ─────────── */
+.chat{flex:1;display:flex;flex-direction:column;overflow:hidden;}
+
+.chat-hdr{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:13px 20px;
+  border-bottom:1px solid var(--border);
+  background:var(--surface);flex-shrink:0;
+}
+.hdr-left{display:flex;align-items:center;gap:14px;}
+.logo{
+  font-family:'Noto Serif SC',serif;
+  font-size:16px;color:var(--gold);letter-spacing:5px;font-weight:400;
+}
+.room-badge{
+  font-size:11px;color:var(--text-sub);
+  background:var(--surface-2);border:1px solid var(--border);
+  border-radius:5px;padding:3px 10px;letter-spacing:0.5px;
+}
+.hdr-right{display:flex;align-items:center;gap:10px;}
+.mini-av{
+  width:28px;height:28px;border-radius:50%;
+  background:linear-gradient(145deg,var(--gold),var(--gold-dim));
+  display:flex;align-items:center;justify-content:center;
+  font-family:'Noto Serif SC',serif;font-size:11px;font-weight:700;
+  color:rgba(0,0,0,0.65);
+}
+.hdr-name{font-size:12px;color:var(--text-sub);}
+.btn-logout{
+  font-size:11px;color:var(--text-dim);
+  background:none;border:none;cursor:pointer;
+  padding:4px 8px;border-radius:4px;
+  transition:color 0.15s,background 0.15s;
+}
+.btn-logout:hover{color:var(--text);background:var(--surface-2);}
+
+.chat-body{flex:1;display:flex;overflow:hidden;}
+
+/* user list */
+.ulist{
+  width:148px;flex-shrink:0;
+  border-right:1px solid var(--border);
+  padding:14px 8px;overflow-y:auto;
+  background:var(--surface);
+}
+.ulist-hdr{
+  display:flex;align-items:center;gap:6px;
+  padding:0 6px;margin-bottom:14px;
+}
+.odot{
+  width:6px;height:6px;border-radius:50%;
+  background:var(--green);
+  box-shadow:0 0 7px rgba(76,175,106,0.55);
+}
+.olabel{font-size:9px;color:var(--text-dim);letter-spacing:2px;text-transform:uppercase;}
+.ocount{font-size:10px;color:var(--gold);margin-left:2px;}
+
+.uitem{
+  display:flex;align-items:center;gap:8px;
+  padding:7px 8px;border-radius:9px;
+  cursor:pointer;transition:background 0.15s;margin-bottom:2px;
+}
+.uitem:hover,.uitem.active{background:var(--surface-2);}
+.uav{
+  width:32px;height:32px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:13px;font-weight:700;
+  font-family:'Noto Serif SC',serif;
+  color:rgba(0,0,0,0.62);flex-shrink:0;
+}
+.uname-wrap{overflow:hidden;}
+.uname{font-size:12px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ume{font-size:10px;color:var(--text-dim);}
+
+/* messages */
+.msgs{
+  flex:1;padding:20px 16px;overflow-y:auto;
+  display:flex;flex-direction:column;gap:var(--msg-gap,20px);
+  transition:gap 0.3s;
+}
+.msg{display:flex;gap:10px;align-items:flex-start;}
+.msg.self{flex-direction:row-reverse;}
+.mav{
+  width:var(--av-size,38px);height:var(--av-size,38px);border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:var(--av-font,15px);font-weight:700;
+  font-family:'Noto Serif SC',serif;color:rgba(0,0,0,0.62);
+  flex-shrink:0;margin-top:2px;
+  transition:width 0.25s,height 0.25s,font-size 0.25s,opacity 0.25s;
+}
+.mav.hidden{opacity:0;pointer-events:none;}
+.mbody{max-width:210px;}
+.mmeta{display:flex;align-items:baseline;gap:6px;margin-bottom:5px;}
+.msg.self .mmeta{flex-direction:row-reverse;}
+.mname{font-size:11px;color:var(--text-sub);}
+.mtime{font-size:10px;color:var(--text-dim);}
+.mbubble{
+  background:var(--surface);
+  border:1px solid var(--border-2);
+  border-radius:12px;
+  padding:10px 15px;font-size:13px;
+  color:var(--text);line-height:1.6;
+}
+.msg.self .mbubble{
+  background:var(--surface-2);
+  border-color:#252e48;
+}
+
+/* ─────────── TWEAKS ─────────── */
+.tweaks-btn{
+  position:fixed;bottom:18px;right:18px;
+  width:34px;height:34px;border-radius:50%;
+  background:var(--surface-2);border:1px solid var(--border-2);
+  color:var(--text-sub);cursor:pointer;
+  display:flex;align-items:center;justify-content:center;font-size:13px;
+  transition:border-color 0.2s,color 0.2s;z-index:200;
+}
+.tweaks-btn:hover{border-color:var(--gold);color:var(--gold);}
+.tweaks-panel{
+  position:fixed;bottom:60px;right:18px;
+  background:var(--surface);
+  border:1px solid var(--border-2);
+  border-radius:12px;padding:16px 18px;
+  width:190px;z-index:200;
+  box-shadow:0 12px 40px rgba(0,0,0,0.6);
+  display:none;
+}
+.tweaks-panel.open{display:block;}
+.tweaks-title{font-size:9px;letter-spacing:3px;color:var(--text-dim);text-transform:uppercase;margin-bottom:14px;}
+.tweak-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;}
+.tweak-row:last-child{margin-bottom:0;}
+.tweak-lbl{font-size:12px;color:var(--text-sub);}
+.toggle{
+  width:30px;height:17px;border-radius:9px;
+  background:var(--border-2);position:relative;cursor:pointer;
+  transition:background 0.2s;flex-shrink:0;
+}
+.toggle.on{background:var(--gold);}
+.toggle::after{
+  content:'';position:absolute;
+  width:13px;height:13px;border-radius:50%;
+  background:#fff;top:2px;left:2px;
+  transition:transform 0.2s;
+}
+.toggle.on::after{transform:translateX(13px);}
+</style>
+</head>
+<body>
+
+<!-- ── SETTINGS ── -->
+<div class="settings">
+  <div class="settings-hdr">
+    <h1>设　置</h1>
+  </div>
+  <div class="settings-body">
+
+    <!-- Profile -->
+    <div class="card">
+      <div class="section-label">个人资料</div>
+      <div class="avatar-upload">
+        <div class="avatar-ring" id="avatarRing">
+          <svg class="dashed-ring" viewBox="0 0 100 100" fill="none">
+            <circle cx="50" cy="50" r="46"
+              stroke="#c9a84c" stroke-width="1.5"
+              stroke-dasharray="5 5" stroke-linecap="round"/>
+          </svg>
+          <div class="avatar-circle">
+            戈
+            <div class="avatar-overlay">
+              <div class="overlay-icon">↑</div>
+              <div class="overlay-txt">上传</div>
+            </div>
+          </div>
+        </div>
+        <div class="avatar-info">
+          <h3>更换头像</h3>
+          <p>点击上传图片<br>支持 JPG、PNG<br>建议正方形</p>
+        </div>
+      </div>
+      <div class="field">
+        <div class="field-lbl">昵称</div>
+        <div class="field-row">
+          <input class="field-input" type="text" value="戈德斯文" placeholder="设置昵称（可选）"/>
+          <button class="btn-save">保存</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Invites -->
+    <div class="card">
+      <div class="section-label">邀请码</div>
+      <div class="invite-list">
+        <div class="invite-item">
+          <span class="invite-code">JIANGHU01</span>
+          <span class="invite-status">未使用</span>
+        </div>
+        <div class="invite-item">
+          <span class="invite-code">WULIN2024</span>
+          <span class="invite-status used">已使用</span>
+        </div>
+      </div>
+      <button class="btn-gen">＋ 生成邀请码</button>
+    </div>
+
+  </div>
+</div>
+
+<!-- ── CHAT PREVIEW ── -->
+<div class="chat">
+  <div class="chat-hdr">
+    <div class="hdr-left">
+      <span class="logo">江湖</span>
+      <span class="room-badge"># 公共大厅</span>
+    </div>
+    <div class="hdr-right">
+      <div class="mini-av">戈</div>
+      <span class="hdr-name">戈德斯文</span>
+      <button class="btn-logout">退出</button>
+    </div>
+  </div>
+
+  <div class="chat-body">
+    <!-- User list -->
+    <div class="ulist">
+      <div class="ulist-hdr">
+        <div class="odot"></div>
+        <span class="olabel">在线</span>
+        <span class="ocount">3</span>
+      </div>
+      <div class="uitem active">
+        <div class="uav" style="background:linear-gradient(145deg,#c9a84c,#8b6914)">戈</div>
+        <div class="uname-wrap">
+          <div class="uname">戈德斯文</div>
+          <div class="ume">我</div>
+        </div>
+      </div>
+      <div class="uitem">
+        <div class="uav" style="background:linear-gradient(145deg,#5b8fd4,#2a5199)">剑</div>
+        <div class="uname-wrap"><div class="uname">剑客无名</div></div>
+      </div>
+      <div class="uitem">
+        <div class="uav" style="background:linear-gradient(145deg,#4db87a,#1d7a47)">花</div>
+        <div class="uname-wrap"><div class="uname">花间一壶酒</div></div>
+      </div>
+    </div>
+
+    <!-- Messages -->
+    <div class="msgs" id="msgs">
+      <div class="msg">
+        <div class="mav" id="av1" style="background:linear-gradient(145deg,#5b8fd4,#2a5199)">剑</div>
+        <div class="mbody">
+          <div class="mmeta"><span class="mname">剑客无名</span><span class="mtime">23:41</span></div>
+          <div class="mbubble">江湖路远，保重</div>
+        </div>
+      </div>
+      <div class="msg">
+        <div class="mav" id="av2" style="background:linear-gradient(145deg,#4db87a,#1d7a47)">花</div>
+        <div class="mbody">
+          <div class="mmeta"><span class="mname">花间一壶酒</span><span class="mtime">23:43</span></div>
+          <div class="mbubble">哈哈，好久不见！</div>
+        </div>
+      </div>
+      <div class="msg self">
+        <div class="mav" id="av3" style="background:linear-gradient(145deg,#c9a84c,#8b6914)">戈</div>
+        <div class="mbody">
+          <div class="mmeta"><span class="mname">戈德斯文</span><span class="mtime">23:59</span></div>
+          <div class="mbubble">Bearer Token 认证改造完成！</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Tweaks -->
+<button class="tweaks-btn" id="tweaksBtn">⚙</button>
+<div class="tweaks-panel" id="tweaksPanel">
+  <div class="tweaks-title">Tweaks</div>
+  <div class="tweak-row">
+    <span class="tweak-lbl">消息头像</span>
+    <div class="toggle on" id="tAvatar"></div>
+  </div>
+  <div class="tweak-row">
+    <span class="tweak-lbl">紧凑间距</span>
+    <div class="toggle" id="tCompact"></div>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+
+// Tweaks panel
+$('tweaksBtn').addEventListener('click', () => $('tweaksPanel').classList.toggle('open'));
+
+// Toggle: message avatars
+$('tAvatar').addEventListener('click', () => {
+  $('tAvatar').classList.toggle('on');
+  const show = $('tAvatar').classList.contains('on');
+  document.querySelectorAll('.mav').forEach(el => el.classList.toggle('hidden', !show));
+});
+
+// Toggle: compact spacing
+$('tCompact').addEventListener('click', () => {
+  $('tCompact').classList.toggle('on');
+  const compact = $('tCompact').classList.contains('on');
+  const msgs = $('msgs');
+  msgs.style.setProperty('--msg-gap', compact ? '10px' : '20px');
+  msgs.style.setProperty('--av-size', compact ? '26px' : '38px');
+  msgs.style.setProperty('--av-font', compact ? '10px' : '15px');
+});
+</script>
+</body>
+</html>
